@@ -10,7 +10,7 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 # The ID and range of a sample spreadsheet.
 SAMPLE_SPREADSHEET_ID = "1PVCAIDwXs08BrjffoTvlyUL4HyhPeqFpl_BxdEGYIkE"
-SAMPLE_RANGE_NAME = "Sheet1!A1:C10"  # แก้ไขช่วงสเปรดชีตตามต้องการ
+SAMPLE_RANGE_NAME = "Sheet1!A1:C10" 
 
 def main():
     """Shows basic usage of the Sheets API.
