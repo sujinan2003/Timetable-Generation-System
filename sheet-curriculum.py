@@ -22,12 +22,12 @@ newCurriculumFile = client.open('Curriculum')
 for i, cell in enumerate(curriculumData):
     courseID = cell.value
     newSheetName = f'{courseID}'
-    newCurriculumSheet = newCurriculumFile.add_worksheet(title=newSheetName, rows='10', cols='6') #มี6หัวข้อ
+    newSheet = newCurriculumFile.add_worksheet(title=newSheetName, rows='10', cols='6') #มี6หัวข้อ
     headers = ['รหัสวิชา', 'ชื่อวิชา', 'หมวดหมู่รายวิชา', 'หน่วยกิต (ทฤษฎี-ปฏิบัติ-ศึกษาด้วยตนเอง)', 'คาบเรียน (บรรยาย)', 'คาบเรียน (ปฏิบัติ)']
-    newCurriculumSheet.insert_row(headers, index=1)
+    newSheet.insert_row(headers, index=1)
 
     #เพิ่มข้อมูลลงในชีทใหม่
     for col in range(len(headers)):
-        newCurriculumSheet.update_cell(2, col + 1, '')  #ใส่ข้อมูลเป็นช่องว่างเพื่อเตรียมสำหรับข้อมูล
+        newSheet.update_cell(2, col + 1, '')  #ใส่ข้อมูลเป็นช่องว่างเพื่อเตรียมสำหรับข้อมูล
 
 print("Success!")
