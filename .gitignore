@@ -1,8 +1,6 @@
-# Ignore data.json file
+# Ignore file
 data.json
 
-# Ignore credentials.json file
 credentials.json
 
-# Ignore token.json file
 token.json
