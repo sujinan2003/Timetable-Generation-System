@@ -33,7 +33,7 @@ for grade in range(1, numGrades + 1):
         newSheet.insert_row(headers, index=1)
 
 #เพิ่มข้อมูลลงในชีทใหม่
-    for col in range(len(headers)):
-        newSheet.update_cell(2, col + 1, '')  #ใส่ข้อมูลเป็นช่องว่างเพื่อเตรียมสำหรับข้อมูล
+    blank_data = [[''] * len(headers) for _ in range(2, 11)]  # ปรับจำนวนแถวตามต้องการ
+    newSheet.update('A2:C10', blank_data)  # ปรับช่วงข้อมูลตามต้องการ
 
 print("Success!")
