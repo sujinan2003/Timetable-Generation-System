@@ -39,7 +39,7 @@ for sheet in openCourseSheets:
             'อาจารย์': teacher
         })
 
-# แสดงผลที่ดึงมา
+# แสดงผลลัพธ์ที่ดึงมา
 print("Time Slots:", timeSlots)
 print("Rooms:", rooms)
 print("Curriculum:", curriculum)
