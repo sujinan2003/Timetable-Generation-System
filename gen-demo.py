@@ -4,51 +4,16 @@ import time
 
 from oauth2client.service_account import ServiceAccountCredentials
 
+# กำหนดขอบเขตของข้อมูลที่ต้องการใช้
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
+# โหลดข้อมูล credentials จากไฟล์ JSON
 credentials = ServiceAccountCredentials.from_json_keyfile_name('data.json', scope)
 
+# เชื่อมต่อกับ Google Sheets API
 client = gspread.authorize(credentials)
 
-#เขียนข้อมูลลงใน Google Sheets
-def write_timetable_to_sheet(timetable, sheet_name):
-    try:
-        #เปิดไฟล์
-        generateFile = client.open('Generate')
-        #ตรวจสอบว่ามีชีทที่ต้องการหรือยัง ถ้ายังไม่มีให้สร้างใหม่
-        if sheet_name not in [sheet.title for sheet in generateFile.worksheets()]:
-            generateFile.add_worksheet(title=sheet_name, rows="100", cols="20")
-
-        sheet = generateFile.worksheet(sheet_name)
-
-        #ลบข้อมูลทั้งหมดในชีทก่อนเขียน
-        sheet.clear()
-
-        #กำหนดข้อมูลที่จะเขียน
-        data = []
-        header = ['คาบเรียน', 'เซคเรียน', 'รหัสวิชา', 'อาจารย์', 'ห้องเรียน', 'วัน']
-        data.append(header)
-        for schedule in timetable.schedule:
-            row = [
-                schedule['คาบเรียน'],
-                schedule['เซคเรียน'],
-                schedule['รหัสวิชา'],
-                schedule['อาจารย์'],
-                schedule['ห้องเรียน'],
-                schedule['วัน']
-            ]
-            data.append(row)
-
-        # เขียนข้อมูลลงใน Google Sheets
-        sheet.update('A1', data)
-
-        print(f"Success!")
-    
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-
-#ดึงข้อมูล TimeSlot และห้องเรียนจากไฟล์ Main มาเก็บไว้
+# ดึงข้อมูล TimeSlot และห้องเรียนจากไฟล์ Main มาเก็บไว้
 def load_data_from_main(client):
     mainFile = client.open('Main')
     timeSlotSheet = mainFile.worksheet('TimeSlot')
@@ -59,7 +24,7 @@ def load_data_from_main(client):
 
     return timeSlots, rooms
 
-#ดึงข้อมูล Open Course และ Curriculum จากไฟล์
+# ดึงข้อมูล Open Course และ Curriculum จากไฟล์
 def load_courses_curriculum(client):
     curriculumFile = client.open('Curriculum')
     curriculum = []
@@ -81,7 +46,7 @@ def load_courses_curriculum(client):
 
     return curriculum
 
-#กำหนดคลาส TimeTable สำหรับจัดการตารางเรียน
+# กำหนดคลาส TimeTable สำหรับจัดการตารางเรียน
 class TimeTable:
     def __init__(self, timeSlots, rooms, curriculum):
         self.timeSlots = timeSlots
@@ -131,7 +96,7 @@ class TimeTable:
                 self.schedule[i]['วัน'] = random.choice(days)
         self.calculate_fitness()
 
-#สร้างประชากรเริ่มต้น
+# สร้างประชากรเริ่มต้นสำหรับเจเนติกอัลกอริทึม
 def create_initial_population(pop_size, timeSlots, rooms, curriculum):
     population = []
     for _ in range(pop_size):
@@ -140,20 +105,20 @@ def create_initial_population(pop_size, timeSlots, rooms, curriculum):
         population.append(timetable)
     return population
 
-#เลือก perents for cossover
+# เลือกผู้ปกครองสำหรับการผสมพันธุ์
 def select_parents(population):
     fitness_sum = sum([timetable.fitness for timetable in population])
     if fitness_sum == 0:
-        return random.choice(population)  #กรณีไม่มีค่า fitness ที่ไม่ใช่ 0 ให้สุ่มเลือกค่าใน population มาแทน
+        return random.choice(population)  # กรณีไม่มีค่า fitness ที่ไม่ใช่ 0 ให้สุ่มเลือกค่าใน population มาแทน
     pick = random.uniform(0, fitness_sum)
     current = 0
     for timetable in population:
         current += timetable.fitness
         if current > pick:
             return timetable
-    return random.choice(population)  #กรณีไม่พบตารางเรียนที่มีค่า fitness มากกว่า pick ให้สุ่มเลือกค่าใน population มาแทน
+    return random.choice(population)  # กรณีไม่พบตารางเรียนที่มีค่า fitness มากกว่า pick ให้สุ่มเลือกค่าใน population มาแทน
 
-#ค้นหาตารางเรียนที่ดีที่สุด
+# เจเนติกอัลกอริทึมสำหรับการค้นหาตารางเรียนที่ดีที่สุด
 def genetic_algorithm(pop_size, timeSlots, rooms, curriculum, generations, mutation_rate):
     population = create_initial_population(pop_size, timeSlots, rooms, curriculum)
     for generation in range(generations):
@@ -168,17 +133,17 @@ def genetic_algorithm(pop_size, timeSlots, rooms, curriculum, generations, mutat
         print(f'Generation {generation} Best Fitness: {population[0].fitness}')
     return population[0]
 
-#กำหนดค่าเริ่มต้น
+# กำหนดค่าเริ่มต้น
 pop_size = 50
 generations = 100
 mutation_rate = 0.01
 
-#ดึงข้อมูลจาก Google Sheets
+# ดึงข้อมูลจาก Google Sheets
 timeSlots, rooms = load_data_from_main(client)
 curriculum = load_courses_curriculum(client)
 
-#run Genetic
+# รันเจเนติกอัลกอริทึม
 best_timetable = genetic_algorithm(pop_size, timeSlots, rooms, curriculum, generations, mutation_rate)
 
-#print("Best Schedule: ", best_timetable.schedule)
-write_timetable_to_sheet(best_timetable, 'Best Timetable')
+# แสดงผลลัพธ์
+print("Best Schedule: ", best_timetable.schedule)
