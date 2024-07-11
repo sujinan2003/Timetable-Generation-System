@@ -91,7 +91,7 @@ class TimeTable:
         self.fitness = 0
 
     def initialize(self):
-        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+        days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์']
         for course in self.curriculum:
             timeSlot = random.choice(self.timeSlots)
             room = random.choice(self.rooms)
@@ -123,7 +123,7 @@ class TimeTable:
         return child
 
     def mutate(self, mutation_rate):
-        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+        days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์']
         for i in range(len(self.schedule)):
             if random.random() < mutation_rate:
                 self.schedule[i]['คาบเรียน'] = random.choice(self.timeSlots)
