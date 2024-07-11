@@ -1,5 +1,7 @@
 import random
 import gspread
+import time
+
 from oauth2client.service_account import ServiceAccountCredentials
 
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -38,9 +40,12 @@ for sheet in openCourseSheets:
             'เซคเรียน': section,
             'อาจารย์': teacher
         })
+    
+        # เพิ่มการหน่วงเวลา
+        time.sleep(1)  # หน่วงเวลา 1 วินาที
 
 # แสดงผลลัพธ์ที่ดึงมา
-print("Time Slots:", timeSlots)
-print("Rooms:", rooms)
-print("Curriculum:", curriculum)
-print("Courses:", courses)
+#print("Time Slots:", timeSlots)
+#print("Rooms:", rooms)
+#print("Curriculum:", curriculum)
+#print("Courses:", courses)
