@@ -2,17 +2,13 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import time
 
-# กำหนดขอบเขตของข้อมูลที่ต้องการใช้
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 credentials = ServiceAccountCredentials.from_json_keyfile_name('data.json', scope)  
 
-#เชื่อมต่อกับ Google Sheets API
 client = gspread.authorize(credentials)
 
-#เปิดไฟล์ Main
 mainFile = client.open('Main')
-
-#เลือกชีท 'Students'
+#เลือกชีท Students
 studentSheet = mainFile.worksheet('Students')
 
 #ดึงข้อมูลจำนวนชั้นปี จาก D3
@@ -22,7 +18,7 @@ numGrades = int(studentSheet.acell('D3').value)
 branchNamesRange = studentSheet.range('D11:D18')
 branchNames = [cell.value for cell in branchNamesRange if cell.value]
 
-#เปิด 'Open Course'
+#เปิด Open Course
 openCourseFile = client.open('Open Course')
 
 #สร้างชีทใหม่ แต่ละชื่อสาขาและชั้นปี
@@ -33,10 +29,10 @@ for grade in range(1, numGrades + 1):
         headers = ['รหัสวิชา', 'เซคเรียน', 'รหัสอาจารย์']
         newSheet.insert_row(headers, index=1)
         
-         # เพิ่มการหน่วงเวลา
-    time.sleep(1)  # หน่วงเวลา 1 วินาที
+    #หน่วงเวลา 1 วิ     
+    time.sleep(1)  
     
-    # ใช้ batch update แทนการอัปเดตทีละเซลล์
+    #ใช้ batch update แทนการอัปเดตทีละเซลล์
     blank_data = [[''] * len(headers) for _ in range(2, 11)] 
     newSheet.update('A2:C10', blank_data) 
 
