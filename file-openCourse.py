@@ -1,5 +1,6 @@
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import time
 
 # กำหนดขอบเขตของข้อมูลที่ต้องการใช้
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -31,9 +32,13 @@ for grade in range(1, numGrades + 1):
         newSheet = openCourseFile.add_worksheet(title=newSheetName , rows='10', cols='3')
         headers = ['รหัสวิชา', 'เซคเรียน', 'รหัสอาจารย์']
         newSheet.insert_row(headers, index=1)
+        
+         # เพิ่มการหน่วงเวลา
+    time.sleep(1)  # หน่วงเวลา 1 วินาที
+    
+    # ใช้ batch update แทนการอัปเดตทีละเซลล์
+    blank_data = [[''] * len(headers) for _ in range(2, 11)] 
+    newSheet.update('A2:C10', blank_data) 
 
-#เพิ่มข้อมูลลงในชีทใหม่
-    blank_data = [[''] * len(headers) for _ in range(2, 11)]  # ปรับจำนวนแถวตามต้องการ
-    newSheet.update('A2:C10', blank_data)  # ปรับช่วงข้อมูลตามต้องการ
 
 print("Success!")
