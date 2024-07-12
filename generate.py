@@ -55,7 +55,7 @@ def load_data_from_main(client):
     timeSlots = [cell.value for cell in timeSlotSheet.range('C3:C14')]
 
     roomSheet = mainFile.worksheet('Room')
-    rooms = [cell.value for cell in roomSheet.range('G3:G') if cell.value]
+    rooms = [cell.value for cell in roomSheet.range('C3:C') if cell.value]
 
     return timeSlots, rooms
 

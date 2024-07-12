@@ -11,29 +11,39 @@ client = gspread.authorize(credentials)
 mainFile = client.open('Main')
 teacherSheet = mainFile.worksheet('Teachers')
 
-#ดึงข้อมูลชื่อ Teachers
-branchNamesRange = teacherSheet.range('C3:C')
-branchNames = [cell.value for cell in branchNamesRange if cell.value]
+# ดึงรหัส Teachers
+idTeacherRange = teacherSheet.range('C3:C')
+idTeacher = [cell.value for cell in idTeacherRange if cell.value]
 
-#เปิดไฟล์ Teacher
+# ดึงชื่อ Teachers
+nameTeacherRange = teacherSheet.range('D3:D')
+nameTeacher = [cell.value for cell in nameTeacherRange if cell.value]
+
+# Pair idTeacher and nameTeacher
+teacher_data = zip(idTeacher, nameTeacher)
+
+# เปิดไฟล์ Teacher
 teacherFile = client.open('Teacher')
 
-for branch_name in branchNames:
-    newSheetName = f'{branch_name}'
+for branch_id, teacher_name in teacher_data:
+    newSheetName = f'{branch_id}'
     newSheet = teacherFile.add_worksheet(title=newSheetName, rows='9', cols='13')
-    header1 = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
-    header2 = ['วัน/เวลา', '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00', '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00', '16:00 - 17:00', '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00']
-    headerDay = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์']
+    headerTitle = [f'ตารางสอน {teacher_name}']
+    headerPeriod = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+    headerTime = ['วัน/เวลา', '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00', '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00', '16:00 - 17:00', '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00']
+    headerDay = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'] 
 
-    #เตรียมข้อมูล for batch update
+    # เตรียมข้อมูล for batch update
     batch_data = []
-    batch_data.append({'range': 'A1:M1', 'values': [header1]})
-    batch_data.append({'range': 'A2:M2', 'values': [header2]})
-    for i, day in enumerate(headerDay, start=3):
-        batch_data.append({'range': f'A{i}', 'values': [[day]]})
-        
+    batch_data.append({'range': 'A1:M1', 'values': [headerTitle]})
+    batch_data.append({'range': 'A2:M2', 'values': [headerPeriod]})
+    batch_data.append({'range': 'A3:M3', 'values': [headerTime]})
+    for i, day in enumerate(headerDay, start=4):
+        if i <= 9:  # Ensure the range is within the limits of the sheet
+            batch_data.append({'range': f'A{i}:A{i}', 'values': [[day]]}) 
+
     newSheet.batch_update(batch_data)
-    
+
     time.sleep(1)
 
 print("Success!")
