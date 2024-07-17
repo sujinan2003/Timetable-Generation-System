@@ -27,7 +27,7 @@ teacherFile = client.open('Teacher')
 
 for branch_id, teacher_name in teacher_data:
     newSheetName = f'{branch_id}'
-    newSheet = teacherFile.add_worksheet(title=newSheetName, rows='9', cols='13')
+    newSheet = teacherFile.add_worksheet(title=newSheetName, rows='10', cols='13')
     headerTitle = [f'ตารางสอน {teacher_name}']
     headerPeriod = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
     headerTime = ['วัน/เวลา', '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00', '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00', '16:00 - 17:00', '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00']
@@ -39,7 +39,7 @@ for branch_id, teacher_name in teacher_data:
     batch_data.append({'range': 'A2:M2', 'values': [headerPeriod]})
     batch_data.append({'range': 'A3:M3', 'values': [headerTime]})
     for i, day in enumerate(headerDay, start=4):
-        if i <= 9:  # Ensure the range is within the limits of the sheet
+        if i <= 10:  # Ensure the range is within the limits of the sheet
             batch_data.append({'range': f'A{i}:A{i}', 'values': [[day]]}) 
 
     newSheet.batch_update(batch_data)
