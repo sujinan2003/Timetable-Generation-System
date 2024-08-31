@@ -10,30 +10,43 @@ client = gspread.authorize(credentials)
 
 mainFile = client.open('Main')
 teacherSheet = mainFile.worksheet('Room')
+timeSlotSheet = mainFile.worksheet('TimeSlot')
 
-#ดึงข้อมูลชื่อ Teachers
+# ดึงข้อมูลชื่อ Teachers
 branchNamesRange = teacherSheet.range('C3:C')
 branchNames = [cell.value for cell in branchNamesRange if cell.value]
 
-#เปิดไฟล์ Teacher
+# ดึงข้อมูลช่วงเวลา
+periodRange = timeSlotSheet.range('D3:D14')
+period = [cell.value for cell in periodRange if cell.value]
+
+timeSlotStartRange = timeSlotSheet.range('D3:D14')
+timeSlotStart = [cell.value for cell in timeSlotStartRange if cell.value]
+
+timeSlotEndRange = timeSlotSheet.range('E3:E14')
+timeSlotEnd = [cell.value for cell in timeSlotEndRange if cell.value]
+
+# สร้าง header2 จากช่วงเวลา
+header2 = ['วัน/เวลา'] + [f'{start} - {end}' for start, end in zip(timeSlotStart, timeSlotEnd)]
+
+# เปิดไฟล์ Teacher
 teacherFile = client.open('Room')
 
 for branch_name in branchNames:
     newSheetName = f'{branch_name}'
     newSheet = teacherFile.add_worksheet(title=newSheetName, rows='9', cols='13')
-    header1 = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
-    header2 = ['วัน/เวลา', '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00', '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00', '16:00 - 17:00', '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00']
+    header1 = [''] + [str(i) for i in range(1, len(period) + 1)]
     headerDay = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์']
 
-    #เตรียมข้อมูล for batch update
+    # เตรียมข้อมูล for batch update
     batch_data = []
     batch_data.append({'range': 'A1:M1', 'values': [header1]})
     batch_data.append({'range': 'A2:M2', 'values': [header2]})
     for i, day in enumerate(headerDay, start=3):
         batch_data.append({'range': f'A{i}', 'values': [[day]]})
-        
+
     newSheet.batch_update(batch_data)
-    
+
     time.sleep(1)
 
 print("Success!")

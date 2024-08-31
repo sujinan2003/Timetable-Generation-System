@@ -13,7 +13,6 @@ mainFile = client.open('Main')
 curriculumSheet = mainFile.worksheet('Curriculum')
 curriculumData = curriculumSheet.range('B3:B10')
 
-#สร้างไฟล์ใหม่
 newCurriculumFile = client.open('Curriculum')
 
 #สร้างชีทใหม่สำหรับแต่ละหลักสูตร

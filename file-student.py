@@ -8,6 +8,17 @@ credentials = ServiceAccountCredentials.from_json_keyfile_name('data.json', scop
 client = gspread.authorize(credentials)
 mainFile = client.open('Main')
 studentSheet = mainFile.worksheet('Students')
+timeSlotSheet = mainFile.worksheet('TimeSlot')
+
+# ดึงข้อมูลช่วงเวลา
+periodRange = timeSlotSheet.range('D3:D14')
+period = [cell.value for cell in periodRange if cell.value]
+
+timeSlotStartRange = timeSlotSheet.range('D3:D14')
+timeSlotStart = [cell.value for cell in timeSlotStartRange if cell.value]
+
+timeSlotEndRange = timeSlotSheet.range('E3:E14')
+timeSlotEnd = [cell.value for cell in timeSlotEndRange if cell.value]
 
 #ดึงข้อมูลจำนวนชั้นปี จากเซลล์ D3
 numGrades = int(studentSheet.acell('D3').value)
@@ -16,8 +27,10 @@ numGrades = int(studentSheet.acell('D3').value)
 branchNamesRange = studentSheet.range('D11:D18')
 branchNames = [cell.value for cell in branchNamesRange if cell.value]
 
-openCourseFile = client.open('Open Course')
+# สร้าง header2 จากช่วงเวลา
+header2 = ['วัน/เวลา'] + [f'{start} - {end}' for start, end in zip(timeSlotStart, timeSlotEnd)]
 
+openCourseFile = client.open('Open Course')
 
 studentFile = client.open('Student')
 
@@ -30,7 +43,7 @@ for grade in range(1, numGrades + 1):
     
         # ดึงข้อมูลจำนวนเซคเรียนจากไฟล์ Open Course
         openCourseSheet = openCourseFile.worksheet(f'{branch_name}_Y{grade}')
-        sectionNames = openCourseSheet.col_values(2)[1:]  # สมมติว่าชื่อเซคอยู่ที่คอลัมน์ B เริ่มจากแถวที่ 2
+        sectionNames = openCourseSheet.col_values(1)[1:]  # สมมติว่าชื่อเซคอยู่ที่คอลัมน์ A เริ่มจากแถวที่ 2
         
         #กำจัดชื่อเซคเรียนที่ซ้ำกัน
         uniqueSectionNames = []
@@ -40,8 +53,7 @@ for grade in range(1, numGrades + 1):
                 uniqueSectionNames.append(section)
                 seen.add(section)
         
-        header1 = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
-        header2 = ['วัน/เวลา', '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00', '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00', '16:00 - 17:00', '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00']
+        header1 = [''] + [str(i) for i in range(1, len(period) + 1)]
         headerDay = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์']
 
         #ใช้ batch update เพื่อเพิ่มข้อมูลลงในชีทใหม่
