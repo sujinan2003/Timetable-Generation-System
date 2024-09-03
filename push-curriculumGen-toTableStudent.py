@@ -47,6 +47,7 @@ def prepare_data_for_updates(open_course_data, curriculum_data, section_names, s
 
                     course_section = course[0]
                     course_code = course[1]
+                    course_type = course[4] 
                     course_credit = course[5]  # หน่วยกิตอยู่ในคอลัมน์ E 
                     
                     # ตรวจสอบให้แน่ใจว่า course_section ตรงกับ section ที่กำลังอัปเดต
@@ -73,7 +74,7 @@ def prepare_data_for_updates(open_course_data, curriculum_data, section_names, s
                                     col = days.index(day) + 2  # ตัวอย่างเริ่มคอลัมน์ที่ c
                                     for period in range(lecture_start, lecture_end + 1):
                                         row = start_row + period - 1  # เพิ่มแถวตามที่ต้องการ
-                                        batch_data.append({'range': f'{chr(65 + col)}{row}', 'values': [[f'{course_code}\n{course_credit}']]})
+                                        batch_data.append({'range': f'{chr(65 + col)}{row}', 'values': [[f'{course_code}\n{course_credit}\n{course_type}']]})
 
                             for day in practical_days.split(','):
                                 day = day.strip()
@@ -81,7 +82,7 @@ def prepare_data_for_updates(open_course_data, curriculum_data, section_names, s
                                     col = days.index(day) + 1
                                     for period in range(practical_start, practical_end + 1):
                                         row = start_row + period - 1
-                                        batch_data.append({'range': f'{chr(65 + col)}{row}', 'values': [[f'{course_code}\n{course_credit}']]})
+                                        batch_data.append({'range': f'{chr(65 + col)}{row}', 'values': [[f'{course_code}\n{course_credit}\n{course_type}']]})
     
     return batch_data
 
