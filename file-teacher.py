@@ -30,9 +30,9 @@ timeSlotStart = [cell.value for cell in timeSlotStartRange if cell.value]
 timeSlotEndRange = timeSlotSheet.range('E3:E14')
 timeSlotEnd = [cell.value for cell in timeSlotEndRange if cell.value]
 
-# สร้าง header2 จากช่วงเวลา
-headerTime = ['วัน/เวลา'] + [f'{start} - {end}' for start, end in zip(timeSlotStart, timeSlotEnd)]
-
+# กำหนด header สำหรับช่วงเวลาและคาบ
+headerPeriod = ['คาบ'] + [str(i) for i in range(1, len(period) + 1)]
+headerTime = ['เวลา'] + [f'{start} - {end}' for start, end in zip(timeSlotStart, timeSlotEnd)]
 
 # Pair idTeacher and nameTeacher
 teacher_data = zip(idTeacher, nameTeacher)
@@ -42,20 +42,26 @@ teacherFile = client.open('Teacher')
 
 for branch_id, teacher_name in teacher_data:
     newSheetName = f'{branch_id}'
-    newSheet = teacherFile.add_worksheet(title=newSheetName, rows='10', cols='13')
+    newSheet = teacherFile.add_worksheet(title=newSheetName, rows='200', cols='13')
     headerTitle = [f'ตารางสอน {teacher_name}']
-    headerPeriod = [''] + [str(i) for i in range(1, len(period) + 1)]
-    headerDay = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'] 
+    header = ['คาบ', 'เวลา', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์']
 
-    # เตรียมข้อมูล for batch update
+# ใช้ batch update เพื่อเพิ่มข้อมูลลงในชีทใหม่
     batch_data = []
-    batch_data.append({'range': 'A1:M1', 'values': [headerTitle]})
-    batch_data.append({'range': 'A2:M2', 'values': [headerPeriod]})
-    batch_data.append({'range': 'A3:M3', 'values': [headerTime]})
-    for i, day in enumerate(headerDay, start=4):
-        if i <= 10:  # Ensure the range is within the limits of the sheet
-            batch_data.append({'range': f'A{i}:A{i}', 'values': [[day]]}) 
+    row_start = 1  # เริ่มที่แถวแรก
+    
+    # เพิ่ม Header (คาบ, เวลา, วันต่างๆ)
+    batch_data.append({'range': f'A{row_start}:I{row_start}', 'values': [headerTitle]})
+    row_start += 1
+    batch_data.append({'range': f'A{row_start}:I{row_start}', 'values': [header]})
+    row_start += 1 
 
+    # เพิ่มข้อมูลหัวข้อคาบ
+    period_data = [[headerPeriod[i], headerTime[i]] + ['' for _ in range(7)] for i in range(1, len(headerPeriod))]
+    batch_data.append({'range': f'A{row_start}:I{row_start + len(period_data) - 1}', 'values': period_data})
+    row_start += len(period_data)
+
+    # เพิ่มข้อมูลลงในชีทใหม่
     newSheet.batch_update(batch_data)
 
     time.sleep(1)
