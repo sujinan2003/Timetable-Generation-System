@@ -41,13 +41,12 @@ def write_timetable_to_sheet(timetable, sheet_name):
             data.append(row)
 
         # Use range_name and values parameters
-        sheet.update(range_name='A1', values=data)
+        sheet.update('A1', data)
         print("Success!")
     
     except Exception as e:
         print(f"An error occurred: {e}")
- 
-        
+
 # Load time slots and rooms from Main file
 def load_data_from_main(client):
     mainFile = client.open('Main')
@@ -66,6 +65,7 @@ def load_room_types(client):
     room_types = [cell.value for cell in roomSheet.range('G3:G') if cell.value]
     return room_types
 
+# Load courses and curriculum data
 def load_courses_curriculum(client):
     curriculum = []
     try:
@@ -78,8 +78,13 @@ def load_courses_curriculum(client):
                 section = row[0]
                 course_code = row[1]
                 teacher = row[2]
+                category = row[4]
                 lectures = row[6]
                 practicals = row[7]
+
+                # Check if the category is "ศึกษาทั่วไป" and skip if it is
+                if category == 'ศึกษาทั่วไป':
+                    continue
 
                 # Validate and convert to integer
                 try:
@@ -102,7 +107,6 @@ def load_courses_curriculum(client):
         print(f"Failed to load courses curriculum: {e}")
     
     return curriculum
-
 
 # TimeTable class for managing schedule
 class TimeTable:
@@ -151,10 +155,8 @@ class TimeTable:
             })
 
         self.calculate_fitness()
-
-
-
-
+        # Print fitness value after initialization
+        print(f"Fitness Value: {self.fitness}")
 
     def calculate_end_period(self, start_period, num_periods):
         start_index = self.timeSlots.index(start_period)
@@ -173,9 +175,6 @@ class TimeTable:
             return self.room_types[index] if index < len(self.room_types) else 'บรรยาย'
         except ValueError:
             return 'บรรยาย'
-
-    def get_room_type_for_course(self, course_type):
-        return course_type  # Assuming room types match course types directly
 
     def calculate_fitness(self):
         conflicts = 0
@@ -205,19 +204,53 @@ class TimeTable:
                 else:
                     schedule['วันเรียนปฏิบัติ'] = random.choice(days)
                 schedule['คาบบรรยาย(เริ่ม)'] = random.choice(self.timeSlots)
-                schedule['คาบบรรยาย(จบ)'] = self.calculate_end_period(schedule['คาบบรรยาย(เริ่ม)'], 1)
-                schedule['คาบปฏิบัติ(เริ่ม)'] = random.choice(self.timeSlots)
-                schedule['คาบปฏิบัติ(จบ)'] = self.calculate_end_period(schedule['คาบปฏิบัติ(เริ่ม)'], 1)
+                schedule['คาบบรรยาย(จบ)'] = self.calculate_end_period(
+                    schedule['คาบบรรยาย(เริ่ม)'],
+                    len(schedule['คาบบรรยาย(เริ่ม)'])
+                )
+                schedule['ห้องเรียน'] = self.get_available_room('บรรยาย')
+        self.calculate_fitness()
 
-# Example Usage
-def main():
+# Main function to run the genetic algorithm
+def genetic_algorithm(client):
     timeSlots, rooms = load_data_from_main(client)
     room_types = load_room_types(client)
     curriculum = load_courses_curriculum(client)
 
-    timetable = TimeTable(timeSlots, rooms, room_types, curriculum)
-    timetable.initialize()
-    write_timetable_to_sheet(timetable, 'Sample_Timetable')
+    # Initialize population
+    population_size = 10
+    generations = 100
+    mutation_rate = 0.01
+
+    population = [TimeTable(timeSlots, rooms, room_types, curriculum) for _ in range(population_size)]
+    for timetable in population:
+        timetable.initialize()
+
+    # Evolve the population
+    for generation in range(generations):
+        # Sort by fitness (higher is better)
+        population.sort(key=lambda x: x.fitness, reverse=True)
+
+        # Print best fitness
+        print(f"Generation {generation}: Best Fitness = {population[0].fitness}")
+
+        # Selection and Crossover
+        next_generation = [population[0]]  # Elitism - keep best
+        for _ in range(1, population_size):
+            parent1, parent2 = random.choices(population[:5], k=2)  # Select top 5 for mating
+            child = parent1.crossover(parent2)
+            next_generation.append(child)
+
+        # Mutation
+        for timetable in next_generation[1:]:  # Skip the best one
+            timetable.mutate(mutation_rate)
+
+        # Replace old population with new generation
+        population = next_generation
+
+    # Save the best result to Google Sheets
+    best_timetable = population[0]
+    write_timetable_to_sheet(best_timetable, 'Final_Timetable')
 
 if __name__ == "__main__":
-    main()
+    genetic_algorithm(client)
