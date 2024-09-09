@@ -108,6 +108,73 @@ def load_courses_curriculum(client):
     
     return curriculum
 
+def load_teacher_availability(client):
+    teacher_availability = {}
+    try:
+        teacher_file = client.open('Teacher')
+        sheets = teacher_file.worksheets()
+
+        for sheet in sheets:
+            teacher_id = sheet.title
+            data = sheet.get_all_values()
+
+            if not data or len(data) < 3:
+                print(f"Insufficient data in sheet {teacher_id}.")
+                continue
+
+            # Extract headers and periods
+            headers = data[1]  # Headers: คาบ, เวลา, จันทร์, อังคาร, ..., อาทิตย์
+            periods = [row[0] for row in data[2:]]  # Periods from A3:A
+
+            # Initialize availability dictionary
+            availability = {}
+            for idx, period in enumerate(periods):
+                period_number = period  # e.g., 1, 2, 3, ...
+                availability[period_number] = {}
+                for day_index, availability_status in enumerate(data[idx + 2][2:]):
+                    day = headers[day_index + 2]  # Mapping day names
+                    try:
+                        availability[period_number][day] = int(availability_status)  # Convert to integer
+                    except ValueError:
+                        availability[period_number][day] = 0  # Default to 0 if conversion fails
+
+            teacher_availability[teacher_id] = {'availability': availability}
+
+    except Exception as e:
+        print(f"Failed to load teacher availability: {e}")
+
+    return teacher_availability
+
+
+def check_teacher_availability(teacher_availability, teacher_id, day, period):
+    # ตรวจสอบว่ามีอาจารย์ตาม ID ที่ระบุหรือไม่
+    if teacher_id not in teacher_availability:
+        print(f"Teacher ID {teacher_id} not found.")
+        return False
+    
+    # ดึงข้อมูลความพร้อมในการสอนของอาจารย์
+    availability = teacher_availability[teacher_id]['availability']
+
+    # ตรวจสอบว่ามีข้อมูลความพร้อมสำหรับช่วงเวลาและวันที่ระบุหรือไม่
+    if period not in availability:
+        print(f"Period {period} not found in teacher {teacher_id}'s schedule.")
+        return False
+    
+    if day not in availability[period]:
+        print(f"Day {day} not found in teacher {teacher_id}'s schedule.")
+        return False
+    
+    # ตรวจสอบสถานะความพร้อม
+    status = availability[period][day]
+    if status == 1:
+        print(f"Teacher {teacher_id} is available on {day} during period {period}.")
+        return True
+    else:
+        print(f"Teacher {teacher_id} is not available on {day} during period {period}.")
+        return False
+
+
+
 # TimeTable class for managing schedule
 class TimeTable:
     def __init__(self, timeSlots, rooms, room_types, curriculum):
@@ -252,5 +319,21 @@ def genetic_algorithm(client):
     best_timetable = population[0]
     write_timetable_to_sheet(best_timetable, 'Final_Timetable')
 
+def main():
+    # ตัวอย่างการเรียกใช้ฟังก์ชันตรวจสอบความพร้อม
+    teacher_availability = load_teacher_availability(client)
+    
+    # ตรวจสอบความพร้อมของอาจารย์
+    teacher_id = "T101"  # รหัสอาจารย์ตัวอย่าง
+    day = "พฤหัส"  # วันตัวอย่าง
+    period = 1  # ช่วงเวลาตัวอย่าง (คาบตัวอย่าง)
+
+    available = check_teacher_availability(teacher_availability, teacher_id, day, period)
+    if available:
+        print(f"Teacher {teacher_id} is available for scheduling.")
+    else:
+        print(f"Teacher {teacher_id} is not available for scheduling.")
+
 if __name__ == "__main__":
-    genetic_algorithm(client)
+    main()
+
