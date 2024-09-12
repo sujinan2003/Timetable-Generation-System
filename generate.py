@@ -19,9 +19,9 @@ def write_timetable_to_sheet(timetable, sheet_name):
 
         data = []
         header = [
-            'วันเรียนบรรยาย', 'คาบบรรยาย(เริ่ม)', 'คาบบรรยาย(จบ)', 
-            'วันเรียนปฏิบัติ', 'คาบปฏิบัติ(เริ่ม)', 'คาบปฏิบัติ(จบ)', 
-            'เซคเรียน', 'รหัสวิชา', 'อาจารย์', 'ห้องเรียน'
+            'วันเรียนบรรยาย', 'คาบบรรยาย(เริ่ม)', 'คาบบรรยาย(จบ)', 'ห้องเรียนบรรยาย',
+            'วันเรียนปฏิบัติ', 'คาบปฏิบัติ(เริ่ม)', 'คาบปฏิบัติ(จบ)', 'ห้องเรียนปฏิบัติ',
+            'เซคเรียน', 'รหัสวิชา', 'อาจารย์'
         ]
         data.append(header)
 
@@ -30,13 +30,16 @@ def write_timetable_to_sheet(timetable, sheet_name):
                 schedule.get('วันเรียนบรรยาย', ''),
                 schedule.get('คาบบรรยาย(เริ่ม)', ''),
                 schedule.get('คาบบรรยาย(จบ)', ''),
+                schedule.get('ห้องเรียนบรรยาย', ''),
+                
                 schedule.get('วันเรียนปฏิบัติ', ''),
                 schedule.get('คาบปฏิบัติ(เริ่ม)', ''),
                 schedule.get('คาบปฏิบัติ(จบ)', ''),
+                schedule.get('ห้องเรียนปฏิบัติ', ''),
+                
                 schedule.get('เซคเรียน', ''),
                 schedule.get('รหัสวิชา', ''),
                 schedule.get('อาจารย์', ''),
-                schedule.get('ห้องเรียน', ''),
             ]
             data.append(row)
 
@@ -204,13 +207,17 @@ class TimeTable:
                 'วันเรียนบรรยาย': day_lectures,
                 'คาบบรรยาย(เริ่ม)': start_period_lectures,
                 'คาบบรรยาย(จบ)': end_period_lectures,
+                'ห้องเรียนบรรยาย' : room_lectures,
+                
                 'วันเรียนปฏิบัติ': day_practicals,
                 'คาบปฏิบัติ(เริ่ม)': start_period_practicals,
                 'คาบปฏิบัติ(จบ)': end_period_practicals,
+                'ห้องเรียนปฏิบัติ' : room_practicals,
+                
                 'เซคเรียน': course['เซคเรียน'],
                 'รหัสวิชา': course['รหัสวิชา'],
                 'อาจารย์': teacher_id,
-                'ห้องเรียน': room_lectures if num_lectures > 0 else room_practicals
+                
             })
 
         self.calculate_fitness()
@@ -252,15 +259,25 @@ class TimeTable:
 
     def calculate_fitness(self):
         conflicts = 0
+        
         for i in range(len(self.schedule)):
             for j in range(i + 1, len(self.schedule)):
+                # Check conflicts for lectures
                 if (self.schedule[i]['คาบบรรยาย(เริ่ม)'] == self.schedule[j]['คาบบรรยาย(เริ่ม)'] and 
                     self.schedule[i]['วันเรียนบรรยาย'] == self.schedule[j]['วันเรียนบรรยาย']):
-                    if (self.schedule[i]['ห้องเรียน'] == self.schedule[j]['ห้องเรียน'] or
+                    if (self.schedule[i]['ห้องเรียนบรรยาย'] == self.schedule[j]['ห้องเรียนบรรยาย'] or
                         self.schedule[i]['อาจารย์'] == self.schedule[j]['อาจารย์']):
                         conflicts += 1
-                    
+                
+                # Check conflicts for practicals
+                if (self.schedule[i]['คาบปฏิบัติ(เริ่ม)'] == self.schedule[j]['คาบปฏิบัติ(เริ่ม)'] and 
+                    self.schedule[i]['วันเรียนปฏิบัติ'] == self.schedule[j]['วันเรียนปฏิบัติ']):
+                    if (self.schedule[i]['ห้องเรียนปฏิบัติ'] == self.schedule[j]['ห้องเรียนปฏิบัติ'] or
+                        self.schedule[i]['อาจารย์'] == self.schedule[j]['อาจารย์']):
+                        conflicts += 1
+
         self.fitness = -conflicts
+
 
     def crossover(self, partner):
         midpoint = random.randint(0, len(self.schedule) - 1)
@@ -273,17 +290,27 @@ class TimeTable:
         days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์']
         for schedule in self.schedule:
             if random.random() < mutation_rate:
+                # Randomly choose between lecture and practical
                 if random.random() < 0.5:
                     schedule['วันเรียนบรรยาย'] = random.choice(days)
+                    schedule['คาบบรรยาย(เริ่ม)'] = random.choice(self.timeSlots)
+                    schedule['คาบบรรยาย(จบ)'] = self.calculate_end_period(
+                        schedule['คาบบรรยาย(เริ่ม)'],
+                        len(schedule['คาบบรรยาย(เริ่ม)'])
+                    )
+                    schedule['ห้องเรียนบรรยาย'] = self.get_available_room('บรรยาย')
                 else:
                     schedule['วันเรียนปฏิบัติ'] = random.choice(days)
-                schedule['คาบบรรยาย(เริ่ม)'] = random.choice(self.timeSlots)
-                schedule['คาบบรรยาย(จบ)'] = self.calculate_end_period(
-                    schedule['คาบบรรยาย(เริ่ม)'],
-                    len(schedule['คาบบรรยาย(เริ่ม)'])
-                )
-                schedule['ห้องเรียน'] = self.get_available_room('บรรยาย')
+                    schedule['คาบปฏิบัติ(เริ่ม)'] = random.choice(self.timeSlots)
+                    schedule['คาบปฏิบัติ(จบ)'] = self.calculate_end_period(
+                        schedule['คาบปฏิบัติ(เริ่ม)'],
+                        len(schedule['คาบปฏิบัติ(เริ่ม)'])
+                    )
+                    schedule['ห้องเรียนปฏิบัติ'] = self.get_available_room('ปฏิบัติ')
+
         self.calculate_fitness()
+
+
 
 def genetic_algorithm(client):
     timeSlots, rooms = load_data_from_main(client)
