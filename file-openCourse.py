@@ -25,8 +25,8 @@ openCourseFile = client.open('Open Course')
 for grade in range(1, numGrades + 1):
     for branch_name in branchNames:
         newSheetName = f'{branch_name}_Y{grade}'
-        newSheet = openCourseFile.add_worksheet(title=newSheetName , rows='100', cols='3')
-        headers = ['เซคเรียน', 'รหัสวิชา', 'รหัสอาจารย์']
+        newSheet = openCourseFile.add_worksheet(title=newSheetName , rows='100', cols='2')
+        headers = ['เซคเรียน', 'รหัสวิชา']
         newSheet.insert_row(headers, index=1)
         
     #หน่วงเวลา 1 วิ     
@@ -34,7 +34,7 @@ for grade in range(1, numGrades + 1):
     
     #ใช้ batch update แทนการอัปเดตทีละเซลล์
     blank_data = [[''] * len(headers) for _ in range(2, 101)] 
-    newSheet.update('A2:C100', blank_data) 
+    newSheet.update('A2:B100', blank_data) 
 
 
 print("Success!")

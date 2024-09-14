@@ -359,6 +359,27 @@ def genetic_algorithm(client):
 
     # บันทึกผลลัพธ์ที่ดีที่สุดไปยัง Google Sheets
     write_timetable_to_sheet(best_timetable, "Best Timetable")
+    
+def assign_rooms_to_sections(timetable, sections, room_data):
+    assigned_rooms = {}
+
+    for section in sections:
+        for period in timetable['periods']:
+            for day in timetable['days']:
+                available_rooms = [room for room in room_data if room not in assigned_rooms.get((day, period), [])]
+
+                if not available_rooms:
+                    print(f"No available rooms for {section} on {day} during period {period}")
+                    continue
+
+                room = available_rooms.pop(0)
+                if (day, period) not in assigned_rooms:
+                    assigned_rooms[(day, period)] = []
+                assigned_rooms[(day, period)].append(room)
+                timetable[section][day][period] = room
+
+    return timetable
+
 
 
 
