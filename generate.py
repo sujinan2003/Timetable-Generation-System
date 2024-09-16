@@ -1,5 +1,6 @@
 import random
 import gspread
+import time
 from oauth2client.service_account import ServiceAccountCredentials
 
 # Setup Google Sheets connection
@@ -7,65 +8,132 @@ scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/au
 credentials = ServiceAccountCredentials.from_json_keyfile_name('data.json', scope)
 client = gspread.authorize(credentials)
 
+# ฟังก์ชันสำหรับการร้องขอข้อมูลจาก Google Sheets
+def get_sheet_data(sheet, range_name):
+    try:
+        data = sheet.get(range_name)
+    except gspread.exceptions.APIError as e:
+        print(f"APIError: {e}")
+        handle_api_error(e)
+        data = retry_request(sheet.get, 3, 5, range_name)
+    return data
+
+# ฟังก์ชันสำหรับการอัปเดตข้อมูลใน Google Sheets
+def update_sheet_data(sheet, range_name, values):
+    try:
+        sheet.update(range_name, values)
+    except gspread.exceptions.APIError as e:
+        print(f"APIError: {e}")
+        handle_api_error(e)
+        retry_request(sheet.update, 3, 5, range_name, values)
+
+# ฟังก์ชันสำหรับจัดการข้อผิดพลาดจาก API
+def handle_api_error(exception):
+    if 'Quota exceeded' in str(exception):
+        print("Quota exceeded. Waiting before retrying.")
+        time.sleep(60)  # รอ 60 วินาทีก่อนทำการร้องขอใหม่
+    else:
+        print(f"An unexpected error occurred: {exception}")
+
+# ฟังก์ชันสำหรับจัดการการทดลองใหม่
+def retry_request(request_func, retries=3, delay=5, *args, **kwargs):
+    for attempt in range(retries):
+        try:
+            return request_func(*args, **kwargs)
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            time.sleep(delay)
+    raise Exception("All retry attempts failed.")
+
+# ฟังก์ชันสำหรับการจัดการคำร้องขอแบบ Batch
+def batch_update(sheet, updates):
+    requests = []
+    for update in updates:
+        range_name = update['range']
+        values = update['values']
+        requests.append({
+            "updateCells": {
+                "range": {
+                    "sheetId": sheet.id,
+                    "startRowIndex": range_name[0],
+                    "endRowIndex": range_name[1],
+                    "startColumnIndex": range_name[2],
+                    "endColumnIndex": range_name[3]
+                },
+                "rows": [{"values": [{"userEnteredValue": {"stringValue": value}} for value in row]} for row in values],
+                "fields": "userEnteredValue"
+            }
+        })
+    body = {
+        "requests": requests
+    }
+    sheet.spreadsheet.batchUpdate(body)
+    
+
 # Write timetable to Google Sheets
 def write_timetable_to_sheet(timetable, sheet_name):
     try:
         generateFile = client.open('Generate')
-        if sheet_name not in [sheet.title for sheet in generateFile.worksheets()]:
+        sheet_names = [sheet.title for sheet in generateFile.worksheets()]
+        
+        if sheet_name not in sheet_names:
             generateFile.add_worksheet(title=sheet_name, rows="100", cols="20")
-
+        
         sheet = generateFile.worksheet(sheet_name)
         sheet.clear()
-
+        
         data = []
         header = [
-            'วันเรียนบรรยาย', 'คาบบรรยาย(เริ่ม)', 'คาบบรรยาย(จบ)', 'ห้องเรียนบรรยาย',
-            'วันเรียนปฏิบัติ', 'คาบปฏิบัติ(เริ่ม)', 'คาบปฏิบัติ(จบ)', 'ห้องเรียนปฏิบัติ',
-            'เซคเรียน', 'รหัสวิชา', 'อาจารย์'
+            'เซคเรียน', 'รหัสวิชา', 'อาจารย์', 'ห้องเรียน',
+            'ประเภทวิชา', 'วันเรียน', 'คาบ (เริ่ม)', 'คาบ (จบ)'
         ]
         data.append(header)
-
+        
         for schedule in timetable.schedule:
             row = [
-                schedule.get('วันเรียนบรรยาย', ''),
-                schedule.get('คาบบรรยาย(เริ่ม)', ''),
-                schedule.get('คาบบรรยาย(จบ)', ''),
-                schedule.get('ห้องเรียนบรรยาย', ''),
-                
-                schedule.get('วันเรียนปฏิบัติ', ''),
-                schedule.get('คาบปฏิบัติ(เริ่ม)', ''),
-                schedule.get('คาบปฏิบัติ(จบ)', ''),
-                schedule.get('ห้องเรียนปฏิบัติ', ''),
-                
                 schedule.get('เซคเรียน', ''),
                 schedule.get('รหัสวิชา', ''),
                 schedule.get('อาจารย์', ''),
+                schedule.get('ห้องเรียน', ''),
+                schedule.get('ประเภทวิชา', ''),
+                schedule.get('วันเรียน', ''),
+                schedule.get('คาบ (เริ่ม)', ''),
+                schedule.get('คาบ (จบ)', '')
             ]
             data.append(row)
-
-        # Use range_name and values parameters
-        sheet.update('A1', data)
+        
+        # Use batch_update to minimize API calls
+        cell_range = f'A1:{chr(65 + len(header) - 1)}{len(data)}'
+        sheet.update(range_name=cell_range, values= data)
+        
         print("Success!")
     
     except Exception as e:
         print(f"An error occurred: {e}")
 
-# Load time slots and rooms from Main file
+# Example for reading data
 def load_data_from_main(client):
     mainFile = client.open('Main')
     timeSlotSheet = mainFile.worksheet('TimeSlot')
-    timeSlots = [cell.value for cell in timeSlotSheet.range('C3:C14')]
+    timeSlots = timeSlotSheet.col_values(3)[2:]  # Skip header row
 
     roomSheet = mainFile.worksheet('Room')
-    rooms = [cell.value for cell in roomSheet.range('C3:C') if cell.value]
+    room_range = roomSheet.get_all_values()
+    rooms = [row[2] for row in room_range[2:] if row[2]]
 
     return timeSlots, rooms
+
 
 # Load room types from Main file
 def load_room_types(client):
     mainFile = client.open('Main')
     roomSheet = mainFile.worksheet('Room')
-    room_types = [cell.value for cell in roomSheet.range('G3:G') if cell.value]
+    room_names_range = roomSheet.range('C3:C')  # ดึงชื่อห้องจากคอลัมน์ C
+    room_types_range = roomSheet.range('G3:G')  # ดึงประเภทห้องจากคอลัมน์ G
+    room_types = {}
+    for room_name, room_type in zip(room_names_range, room_types_range):
+        if room_name.value and room_type.value:
+            room_types[room_name.value] = room_type.value
     return room_types
 
 # Load courses and curriculum data
@@ -80,10 +148,12 @@ def load_courses_curriculum(client):
             for row in data[1:]:  # Skip header row
                 section = row[0]
                 course_code = row[1]
-                teacher = row[2]
-                category = row[4]
-                lectures = row[6]
-                practicals = row[7]
+                course_name = row[2]
+                category = row[3]
+                credits = row[4]
+                hours = row[5]
+                course_type = row[6]
+                teacher = row[7]
 
                 # Check if the category is "ศึกษาทั่วไป" and skip if it is
                 if category == 'ศึกษาทั่วไป':
@@ -91,10 +161,9 @@ def load_courses_curriculum(client):
 
                 # Validate and convert to integer
                 try:
-                    lectures = int(lectures)
-                    practicals = int(practicals)
+                    hours = int(hours)
                 except ValueError:
-                    print(f"Invalid data for lectures or practicals: {lectures}, {practicals}")
+                    print(f"Invalid data for hours: {hours}")
                     continue
 
                 if course_code and section and teacher is not None:
@@ -102,8 +171,8 @@ def load_courses_curriculum(client):
                         'รหัสวิชา': course_code,
                         'เซคเรียน': section,
                         'อาจารย์': teacher,
-                        'จำนวนคาบบรรยาย': lectures,
-                        'จำนวนคาบปฏิบัติ': practicals
+                        'จำนวนชั่วโมง': hours,
+                        'ประเภทวิชา': course_type
                     })
 
     except Exception as e:
@@ -111,6 +180,7 @@ def load_courses_curriculum(client):
     
     return curriculum
 
+# Load teacher availability data
 def load_teacher_availability(client):
     teacher_availability = {}
     try:
@@ -118,7 +188,7 @@ def load_teacher_availability(client):
         sheets = teacher_file.worksheets()
 
         for sheet in sheets:
-            if sheet.title == 'คำแนะนำ':
+            if sheet.title == 'คำอธิบาย':
                 continue
             
             teacher_id = sheet.title
@@ -173,71 +243,44 @@ class TimeTable:
 
     def initialize(self):
         days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์']
+        # Generate lectures first
         for course in self.curriculum:
-            num_lectures = course.get('จำนวนคาบบรรยาย', 0)
-            num_practicals = course.get('จำนวนคาบปฏิบัติ', 0)
-            teacher_id = course.get('อาจารย์', '')
-
-            # Initialize variables
-            day_lectures = start_period_lectures = end_period_lectures = room_lectures = ''
-            day_practicals = start_period_practicals = end_period_practicals = room_practicals = ''
-
-            if num_lectures > 0:
-                day_lectures = random.choice(days)
-                start_period_lectures = random.choice(self.timeSlots)
-                end_period_lectures = self.calculate_end_period(start_period_lectures, num_lectures)
-                room_lectures = self.get_available_room('บรรยาย')
-
-                # ตรวจสอบความพร้อมของอาจารย์สำหรับคาบบรรยาย
-                if not self.check_teacher_availability(teacher_id, day_lectures, start_period_lectures):
-                    continue  # ข้ามการเพิ่มตารางเรียนถ้าอาจารย์ไม่พร้อมสอน
-
-            if num_practicals > 0:
-                day_practicals = random.choice(days)
-                start_period_practicals = random.choice(self.timeSlots)
-                end_period_practicals = self.calculate_end_period(start_period_practicals, num_practicals)
-                room_practicals = self.get_available_room('ปฏิบัติ')
-
-                # ตรวจสอบความพร้อมของอาจารย์สำหรับคาบปฏิบัติ
-                if not self.check_teacher_availability(teacher_id, day_practicals, start_period_practicals):
-                    continue  # ข้ามการเพิ่มตารางเรียนถ้าอาจารย์ไม่พร้อมสอน
-
-            # Add schedule entry
-            self.schedule.append({
-                'วันเรียนบรรยาย': day_lectures,
-                'คาบบรรยาย(เริ่ม)': start_period_lectures,
-                'คาบบรรยาย(จบ)': end_period_lectures,
-                'ห้องเรียนบรรยาย' : room_lectures,
-                
-                'วันเรียนปฏิบัติ': day_practicals,
-                'คาบปฏิบัติ(เริ่ม)': start_period_practicals,
-                'คาบปฏิบัติ(จบ)': end_period_practicals,
-                'ห้องเรียนปฏิบัติ' : room_practicals,
-                
-                'เซคเรียน': course['เซคเรียน'],
-                'รหัสวิชา': course['รหัสวิชา'],
-                'อาจารย์': teacher_id,
-                
-            })
-
+            if course['ประเภทวิชา'] == 'บรรยาย':
+                self.add_course_to_schedule(course, days, 'บรรยาย')
+        
+        # Then generate practicals
+        for course in self.curriculum:
+            if course['ประเภทวิชา'] == 'ปฏิบัติ':
+                self.add_course_to_schedule(course, days, 'ปฏิบัติ')
         self.calculate_fitness()
-        # Print fitness value after initialization
-        print(f"Fitness Value: {self.fitness}")
 
+    def add_course_to_schedule(self, course, days, course_type):
+        num_hours = course['จำนวนชั่วโมง']
+        teacher_id = course['อาจารย์']
+        day = random.choice(days)
+        start_period = random.choice(self.timeSlots)
+        end_period = self.calculate_end_period(start_period, num_hours)
+        room = self.get_available_room(course_type)
+
+        if not self.check_teacher_availability(teacher_id, day, start_period):
+            return
+
+        self.schedule.append({
+            'เซคเรียน': course['เซคเรียน'],
+            'รหัสวิชา': course['รหัสวิชา'],
+            'อาจารย์': teacher_id,
+            'ห้องเรียน': room,
+            'ประเภทวิชา': course_type,
+            'วันเรียน': day,
+            'คาบ (เริ่ม)': start_period,
+            'คาบ (จบ)': end_period
+        })
+        
     def check_teacher_availability(self, teacher_id, day, period):
         if teacher_id not in self.teacher_availability:
             return False
-        
         availability = self.teacher_availability[teacher_id]['availability']
-        
-        if period not in availability:
-            return False
-        
-        if day not in availability[period]:
-            return False
-        
-        return availability[period][day] == 1
-
+        return availability.get(period, {}).get(day, 0) == 1
 
     def calculate_end_period(self, start_period, num_periods):
         start_index = self.timeSlots.index(start_period)
@@ -246,141 +289,175 @@ class TimeTable:
 
     def get_available_room(self, course_type):
         available_rooms = [room for room in self.rooms if self.get_room_type_for_room(room) == course_type]
-        if available_rooms:
-            return random.choice(available_rooms)
-        return random.choice(self.rooms)  # fallback to any room if no matching room found
+        return random.choice(available_rooms) if available_rooms else None
 
     def get_room_type_for_room(self, room):
-        try:
-            index = self.rooms.index(room)
-            return self.room_types[index] if index < len(self.room_types) else 'บรรยาย'
-        except ValueError:
-            return 'บรรยาย'
+        return self.room_types.get(room, None)
 
     def calculate_fitness(self):
-        conflicts = 0
+        # Basic fitness calculation (higher is better)
+        self.fitness = len(self.schedule)
+
+
+# ตัวอย่างฟังก์ชันวัดคุณภาพ (Fitness Function)
+def fitness(timetable):
+    score = 0
+
+    # ตรวจสอบการชนกันของอาจารย์
+    teacher_schedule = {}
+    for entry in timetable.schedule:
+        teacher = entry['อาจารย์']
+        day = entry['วันเรียน']
+        start_period = entry['คาบ (เริ่ม)']
+        end_period = entry['คาบ (จบ)']
+
+        # สร้างตารางเรียนสำหรับอาจารย์แต่ละคน
+        if teacher not in teacher_schedule:
+            teacher_schedule[teacher] = {}
+        if day not in teacher_schedule[teacher]:
+            teacher_schedule[teacher][day] = []
+
+        # ตรวจสอบว่ามีการชนกันของคาบเรียนหรือไม่
+        for period in teacher_schedule[teacher][day]:
+            if not (end_period <= period['start_period'] or start_period >= period['end_period']):
+                score -= 10  # หักคะแนนเมื่อมีการชนกัน
+                break
         
-        for i in range(len(self.schedule)):
-            for j in range(i + 1, len(self.schedule)):
-                # Check conflicts for lectures
-                if (self.schedule[i]['คาบบรรยาย(เริ่ม)'] == self.schedule[j]['คาบบรรยาย(เริ่ม)'] and 
-                    self.schedule[i]['วันเรียนบรรยาย'] == self.schedule[j]['วันเรียนบรรยาย']):
-                    if (self.schedule[i]['ห้องเรียนบรรยาย'] == self.schedule[j]['ห้องเรียนบรรยาย'] or
-                        self.schedule[i]['อาจารย์'] == self.schedule[j]['อาจารย์']):
-                        conflicts += 1
-                
-                # Check conflicts for practicals
-                if (self.schedule[i]['คาบปฏิบัติ(เริ่ม)'] == self.schedule[j]['คาบปฏิบัติ(เริ่ม)'] and 
-                    self.schedule[i]['วันเรียนปฏิบัติ'] == self.schedule[j]['วันเรียนปฏิบัติ']):
-                    if (self.schedule[i]['ห้องเรียนปฏิบัติ'] == self.schedule[j]['ห้องเรียนปฏิบัติ'] or
-                        self.schedule[i]['อาจารย์'] == self.schedule[j]['อาจารย์']):
-                        conflicts += 1
+        teacher_schedule[teacher][day].append({
+            'start_period': start_period,
+            'end_period': end_period
+        })
 
-        self.fitness = -conflicts
+    # ตรวจสอบการชนกันของห้องเรียน
+    room_schedule = {}
+    for entry in timetable.schedule:
+        room = entry['ห้องเรียน']
+        day = entry['วันเรียน']
+        start_period = entry['คาบ (เริ่ม)']
+        end_period = entry['คาบ (จบ)']
+
+        if room not in room_schedule:
+            room_schedule[room] = {}
+        if day not in room_schedule[room]:
+            room_schedule[room][day] = []
+
+        for period in room_schedule[room][day]:
+            if not (end_period <= period['start_period'] or start_period >= period['end_period']):
+                score -= 10  # หักคะแนนเมื่อมีการชนกันของห้องเรียน
+                break
+
+        room_schedule[room][day].append({
+            'start_period': start_period,
+            'end_period': end_period
+        })
+
+    # เพิ่มคะแนนถ้าไม่ชนกัน
+    score += 100
+
+    # ตรวจสอบความถูกต้องของชั่วโมงเรียน
+    for course in timetable.schedule:
+        hours_assigned = len(range(int(course['คาบ (เริ่ม)']), int(course['คาบ (จบ)']) + 1))
+        course_hours = next((c['จำนวนชั่วโมง'] for c in timetable.curriculum if c['รหัสวิชา'] == course['รหัสวิชา']), 0)
+        
+        if hours_assigned != course_hours:
+            score -= 5  # หักคะแนนเมื่อชั่วโมงเรียนไม่ตรงตามที่กำหนด
+
+    # ตรวจสอบว่าตารางเรียนมีความต่อเนื่อง ไม่ว่างมากเกินไป
+    continuous_schedules = 0
+    for day in ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์']:
+        periods_in_day = [entry for entry in timetable.schedule if entry['วันเรียน'] == day]
+        periods_in_day.sort(key=lambda x: x['คาบ (เริ่ม)'])
+
+        for i in range(1, len(periods_in_day)):
+            if periods_in_day[i]['คาบ (เริ่ม)'] == periods_in_day[i-1]['คาบ (จบ)'] + 1:
+                continuous_schedules += 1
+    
+    # ให้คะแนนเมื่อมีการจัดคาบเรียนต่อเนื่อง
+    score += continuous_schedules * 5
+
+    return score
 
 
-    def crossover(self, partner):
-        midpoint = random.randint(0, len(self.schedule) - 1)
-        child = TimeTable(self.timeSlots, self.rooms, self.room_types, self.curriculum)
-        child.schedule = self.schedule[:midpoint] + partner.schedule[midpoint:]
-        child.calculate_fitness()
-        return child
+# ฟังก์ชันสร้างประชากรเริ่มต้น
+def generate_initial_population(size, time_slots, classrooms, sections, teachers):
+    population = []
+    for _ in range(size):
+        timetable = []
+        for section in sections:
+            for slot in time_slots:
+                course = random.choice(sections[section])  # สุ่มเลือกคอร์สสำหรับแต่ละ section
+                room = random.choice(classrooms)           # สุ่มห้องเรียน
+                teacher = random.choice(teachers)          # สุ่มครู
+                timetable.append((section, slot, course, room, teacher))
+        population.append(timetable)
+    return population
 
-    def mutate(self, mutation_rate):
-        days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์']
-        for schedule in self.schedule:
-            if random.random() < mutation_rate:
-                # Randomly choose between lecture and practical
-                if random.random() < 0.5:
-                    schedule['วันเรียนบรรยาย'] = random.choice(days)
-                    schedule['คาบบรรยาย(เริ่ม)'] = random.choice(self.timeSlots)
-                    schedule['คาบบรรยาย(จบ)'] = self.calculate_end_period(
-                        schedule['คาบบรรยาย(เริ่ม)'],
-                        len(schedule['คาบบรรยาย(เริ่ม)'])
-                    )
-                    schedule['ห้องเรียนบรรยาย'] = self.get_available_room('บรรยาย')
-                else:
-                    schedule['วันเรียนปฏิบัติ'] = random.choice(days)
-                    schedule['คาบปฏิบัติ(เริ่ม)'] = random.choice(self.timeSlots)
-                    schedule['คาบปฏิบัติ(จบ)'] = self.calculate_end_period(
-                        schedule['คาบปฏิบัติ(เริ่ม)'],
-                        len(schedule['คาบปฏิบัติ(เริ่ม)'])
-                    )
-                    schedule['ห้องเรียนปฏิบัติ'] = self.get_available_room('ปฏิบัติ')
+# ฟังก์ชันเลือกพ่อแม่ (Selection)
+def selection(population):
+    # เลือกตารางเวลาที่ดีที่สุด 2 ตารางมาเป็นพ่อแม่
+    sorted_population = sorted(population, key=lambda timetable: fitness(timetable), reverse=True)
+    return sorted_population[:2]
 
-        self.calculate_fitness()
+# ฟังก์ชันผสมพันธุ์ (Crossover)
+def crossover(parent1, parent2):
+    # รวมตารางเวลาของพ่อแม่สองคน
+    crossover_point = random.randint(0, len(parent1)-1)
+    child1 = parent1[:crossover_point] + parent2[crossover_point:]
+    child2 = parent2[:crossover_point] + parent1[crossover_point:]
+    return child1, child2
 
+# ฟังก์ชันกลายพันธุ์ (Mutation)
+def mutation(timetable, classrooms, teachers):
+    mutation_point = random.randint(0, len(timetable)-1)
+    section, slot, course, _, _ = timetable[mutation_point]
+    timetable[mutation_point] = (section, slot, course, random.choice(classrooms), random.choice(teachers))
+    return timetable
 
+# ฟังก์ชันหลักสำหรับอัลกอริทึมเจเนติก
+def genetic_algorithm(time_slots, classrooms, sections, teachers, generations=100, population_size=10):
+    population = generate_initial_population(population_size, time_slots, classrooms, sections, teachers)
 
-def genetic_algorithm(client):
+    for generation in range(generations):
+        # คำนวณค่าฟิตเนสของแต่ละ timetable
+        fitness_values = [fitness(timetable) for timetable in population]
+        
+        # ปริ้นค่าฟิตเนสของประชากรในแต่ละ generation
+        print(f"Generation {generation}: Fitness values: {fitness_values}")
+        
+        # ปริ้นค่าฟิตเนสที่ดีที่สุดในแต่ละ generation
+        best_timetable = max(population, key=lambda timetable: fitness(timetable))
+        print(f"Best fitness in generation {generation}: {fitness(best_timetable)}")
+        
+        # เลือกพ่อแม่ (Selection)
+        parents = selection(population)
+
+ 
+        new_population = []
+        for _ in range(population_size // 2):  # ผสมพันธุ์ประชากรครึ่งหนึ่ง
+            parents = selection(population)
+            child1, child2 = crossover(parents[0], parents[1])
+            new_population.append(mutation(child1, classrooms, teachers))
+            new_population.append(mutation(child2, classrooms, teachers))
+        
+        population = new_population
+    
+
+    # หาตารางเวลาที่ดีที่สุดหลังจากครบทุก generation
+    best_timetable = max(population, key=lambda timetable: fitness(timetable))
+
+    return best_timetable
+
+# Example function for running the timetable generation
+def run():
     timeSlots, rooms = load_data_from_main(client)
     room_types = load_room_types(client)
     curriculum = load_courses_curriculum(client)
     teacher_availability = load_teacher_availability(client)
 
-    # Initialize population
-    population_size = 10
-    generations = 100
-    mutation_rate = 0.01
+    best_timetable = TimeTable(timeSlots, rooms, room_types, curriculum, teacher_availability)
+    best_timetable.initialize()
 
-    # สร้างประชากรเริ่มต้น
-    population = [TimeTable(timeSlots, rooms, room_types, curriculum, teacher_availability) for _ in range(population_size)]
-    for timetable in population:
-        timetable.initialize()
+    write_timetable_to_sheet(best_timetable, 'Generate')
 
-    # Evolve the population
-    for generation in range(generations):
-        # คัดเลือกประชากรที่มีความฟิตมากที่สุด 50% มาเพื่อการผสมพันธุ์
-        population.sort(key=lambda x: x.fitness, reverse=True)
-        print(f"Generation {generation}: Best Fitness = {population[0].fitness}")
-
-        # หากได้ผลลัพธ์ที่ไม่มีความขัดแย้ง (fitness = 0) หยุดการรัน
-        if population[0].fitness == 0:
-            print("Optimal solution found!")
-            break
-
-        # คัดเลือกครึ่งหนึ่งของประชากรที่มีความฟิตมากที่สุด
-        parents = population[:population_size // 2]
-
-        # สร้างลูกใหม่จากการผสมพันธุ์
-        children = []
-        for _ in range(population_size // 2):
-            parent1 = random.choice(parents)
-            parent2 = random.choice(parents)
-            child = parent1.crossover(parent2)
-            child.mutate(mutation_rate)
-            children.append(child)
-
-        # ประกอบประชากรใหม่จากครึ่งหนึ่งของพ่อแม่และลูกใหม่
-        population = parents + children
-
-    # ผลลัพธ์ที่ดีที่สุดหลังจากสิ้นสุดการวิวัฒนาการ
-    best_timetable = population[0]
-
-    # บันทึกผลลัพธ์ที่ดีที่สุดไปยัง Google Sheets
-    write_timetable_to_sheet(best_timetable, "Best Timetable")
-    
-def assign_rooms_to_sections(timetable, sections, room_data):
-    assigned_rooms = {}
-
-    for section in sections:
-        for period in timetable['periods']:
-            for day in timetable['days']:
-                available_rooms = [room for room in room_data if room not in assigned_rooms.get((day, period), [])]
-
-                if not available_rooms:
-                    print(f"No available rooms for {section} on {day} during period {period}")
-                    continue
-
-                room = available_rooms.pop(0)
-                if (day, period) not in assigned_rooms:
-                    assigned_rooms[(day, period)] = []
-                assigned_rooms[(day, period)].append(room)
-                timetable[section][day][period] = room
-
-    return timetable
-
-
-
-
-genetic_algorithm(client)
+if __name__ == '__main__':
+    run()
