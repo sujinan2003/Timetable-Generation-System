@@ -229,15 +229,82 @@ def load_teacher_availability(client):
         print(f"Failed to load teacher availability: {e}")
 
     return teacher_availability
+
+# Check student timetable availability
+def check_timetable_student(client):
+    student_availability = {}
+    
+    try:
+        student_file = client.open('Student')
+        sheets = student_file.worksheets()
+
+        for sheet in sheets:
+            if sheet.title == 'คำอธิบาย':
+                continue
+            
+            major_year = sheet.title
+            data = sheet.get_all_values()
+
+            if len(data) < 3:
+                continue  # ข้ามชีทถ้ามีข้อมูลน้อยเกินไป
+
+            headers = data[1]  # แถวที่สองเป็นหัวข้อวัน
+            row_idx = 2  # เริ่มต้นตรวจสอบที่แถวที่ 2
+            
+            # วนลูปแต่ละเซคในชีทเดียวกัน
+            while row_idx < len(data):
+                if len(data[row_idx]) == 0 or "ตารางเรียน" not in data[row_idx][0]:
+                    row_idx += 1
+                    continue
+                
+                # ดึงชื่อเซคออกมา
+                section_name = data[row_idx][0].replace("ตารางเรียน ", "").strip()
+                row_idx += 1  # ขยับไปที่แถวถัดไป ซึ่งเป็นแถวของ header คาบ
+                if row_idx >= len(data):
+                    break
+
+                # ตรวจสอบว่ามีข้อมูลคาบในแต่ละเซคหรือไม่
+                periods = [row[0] for row in data[row_idx + 1:row_idx + 13] if len(row) > 0]  # ดึงข้อมูลคาบ 12 คาบ
+                
+                availability = {}
+
+                for period_idx, period in enumerate(periods):
+                    period_number = period
+                    availability[period_number] = {}
+
+                    for day_index, availability_status in enumerate(data[row_idx + period_idx + 1][2:]):
+                        if day_index + 2 >= len(headers):  # ตรวจสอบว่า index ของ headers ยังไม่เกินขอบเขต
+                            continue
+                        
+                        day = headers[day_index + 2]  # วันในสัปดาห์
+                        availability_status = availability_status.strip()  # ตัดช่องว่างที่ไม่จำเป็นออก
+
+                        if availability_status == '' or availability_status == ' ':
+                            availability[period_number][day] = 'ว่าง'
+                        else:
+                            availability[period_number][day] = 'ถูกจอง'
+
+                # เก็บข้อมูลการจองของเซคใน student_availability
+                student_availability[section_name] = {'availability': availability}
+                
+                # ขยับ row_idx ไปยังเซคถัดไป
+                row_idx += 13  # ขยับไปยังตารางถัดไปสำหรับเซคถัดไป
+
+    except Exception as e:
+        print(f"Failed: {e}")
+
+    return student_availability
+
     
 # TimeTable class for managing schedule
 class TimeTable:
-    def __init__(self, timeSlots, rooms, room_types, curriculum, teacher_availability):
+    def __init__(self, timeSlots, rooms, room_types, curriculum, teacher_availability, student_availability):
         self.timeSlots = timeSlots
         self.rooms = rooms
         self.room_types = room_types
         self.curriculum = curriculum
-        self.teacher_availability = teacher_availability  # เพิ่มการรับข้อมูลความพร้อมของอาจารย์
+        self.teacher_availability = teacher_availability  
+        self.student_availability = student_availability
         self.schedule = []
         self.fitness = 0
 
@@ -281,6 +348,13 @@ class TimeTable:
             return False
         availability = self.teacher_availability[teacher_id]['availability']
         return availability.get(period, {}).get(day, 0) == 1
+    
+    def check_student_availability(self, client, section, day, period):
+        student_availability = check_timetable_student(client, [period])
+        for (section_name, slot, day_index), status in student_availability.items():
+            if section_name == section and day_index == day:
+                return status
+        return None
 
     def calculate_end_period(self, start_period, num_periods):
         start_index = self.timeSlots.index(start_period)
@@ -453,11 +527,14 @@ def run():
     room_types = load_room_types(client)
     curriculum = load_courses_curriculum(client)
     teacher_availability = load_teacher_availability(client)
+    student_availability = check_timetable_student(client)
 
-    best_timetable = TimeTable(timeSlots, rooms, room_types, curriculum, teacher_availability)
-    best_timetable.initialize()
+    print(student_availability)
+    
+  #  best_timetable = TimeTable(timeSlots, rooms, room_types, curriculum, teacher_availability, student_availability)
+  #  best_timetable.initialize()
 
-    write_timetable_to_sheet(best_timetable, 'Generate')
+  #  write_timetable_to_sheet(best_timetable, 'Generate')
 
 if __name__ == '__main__':
     run()
