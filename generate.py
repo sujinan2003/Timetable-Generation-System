@@ -233,7 +233,7 @@ def load_teacher_availability(client):
 # Check student timetable availability
 def check_timetable_student(client):
     student_availability = {}
-    
+
     try:
         student_file = client.open('Student')
         sheets = student_file.worksheets()
@@ -241,7 +241,7 @@ def check_timetable_student(client):
         for sheet in sheets:
             if sheet.title == 'คำอธิบาย':
                 continue
-            
+
             major_year = sheet.title
             data = sheet.get_all_values()
 
@@ -249,51 +249,60 @@ def check_timetable_student(client):
                 continue  # ข้ามชีทถ้ามีข้อมูลน้อยเกินไป
 
             headers = data[1]  # แถวที่สองเป็นหัวข้อวัน
-            row_idx = 2  # เริ่มต้นตรวจสอบที่แถวที่ 2
-            
-            # วนลูปแต่ละเซคในชีทเดียวกัน
+            row_idx = 0  # เริ่มต้นตรวจสอบที่แถวที่ 0
+
             while row_idx < len(data):
-                if len(data[row_idx]) == 0 or "ตารางเรียน" not in data[row_idx][0]:
+                # ตรวจสอบว่าข้อมูลในแถวนี้มีคำว่า 'ตารางเรียน' หรือไม่
+                if len(data[row_idx]) > 0 and "ตารางเรียน" in data[row_idx][0]:
+                    # ดึงชื่อเซคออกมา
+                    section_name = data[row_idx][0].replace("ตารางเรียน ", "").strip()
+                    row_idx += 1  # ขยับไปที่แถว header คาบและวัน
+
+                    if row_idx + 12 >= len(data):
+                        break  # ถ้าข้อมูลคาบไม่ครบให้หยุดการทำงาน
+
+                    # ตรวจสอบว่ามีข้อมูลคาบในแต่ละเซคหรือไม่
+                    periods = [row[0] for row in data[row_idx:row_idx + 12] if len(row) > 0]  # ดึงข้อมูลคาบ 12 คาบ
+                    availability = {}
+
+                    # วนลูปผ่านคาบ
+                    for period_idx, period in enumerate(periods):
+                        period_number = period
+                        availability[period_number] = {}
+
+                        # วนลูปผ่านแต่ละวัน
+                        for day_index, availability_status in enumerate(data[row_idx + period_idx][2:]):
+                            if day_index + 2 >= len(headers):  # ตรวจสอบว่า index ของ headers ยังไม่เกินขอบเขต
+                                continue
+
+                            day = headers[day_index + 2]  # วันในสัปดาห์
+                            availability_status = availability_status.strip()  # ตัดช่องว่างที่ไม่จำเป็นออก
+
+                            if availability_status == '' or availability_status == ' ':
+                                availability[period_number][day] = 'ว่าง'
+                            else:
+                                availability[period_number][day] = 'ถูกจอง'
+
+                    # ถ้ามี section_name อยู่แล้วใน student_availability ให้รวมข้อมูลใหม่เข้ากับข้อมูลเก่า
+                    if section_name in student_availability:
+                        student_availability[section_name]['availability'].update(availability)
+                    else:
+                        student_availability[section_name] = {'availability': availability}
+
+                    # ขยับ row_idx ไปยังตารางของเซคถัดไป
+                    row_idx += 12  # ขยับแถวเพื่อไปยังเซคถัดไป (12 แถวสำหรับข้อมูลคาบ)
+
+                else:
+                    # ถ้าไม่เจอ 'ตารางเรียน' ให้ขยับไปยังแถวถัดไป
                     row_idx += 1
-                    continue
-                
-                # ดึงชื่อเซคออกมา
-                section_name = data[row_idx][0].replace("ตารางเรียน ", "").strip()
-                row_idx += 1  # ขยับไปที่แถวถัดไป ซึ่งเป็นแถวของ header คาบ
-                if row_idx >= len(data):
-                    break
-
-                # ตรวจสอบว่ามีข้อมูลคาบในแต่ละเซคหรือไม่
-                periods = [row[0] for row in data[row_idx + 1:row_idx + 13] if len(row) > 0]  # ดึงข้อมูลคาบ 12 คาบ
-                
-                availability = {}
-
-                for period_idx, period in enumerate(periods):
-                    period_number = period
-                    availability[period_number] = {}
-
-                    for day_index, availability_status in enumerate(data[row_idx + period_idx + 1][2:]):
-                        if day_index + 2 >= len(headers):  # ตรวจสอบว่า index ของ headers ยังไม่เกินขอบเขต
-                            continue
-                        
-                        day = headers[day_index + 2]  # วันในสัปดาห์
-                        availability_status = availability_status.strip()  # ตัดช่องว่างที่ไม่จำเป็นออก
-
-                        if availability_status == '' or availability_status == ' ':
-                            availability[period_number][day] = 'ว่าง'
-                        else:
-                            availability[period_number][day] = 'ถูกจอง'
-
-                # เก็บข้อมูลการจองของเซคใน student_availability
-                student_availability[section_name] = {'availability': availability}
-                
-                # ขยับ row_idx ไปยังเซคถัดไป
-                row_idx += 13  # ขยับไปยังตารางถัดไปสำหรับเซคถัดไป
 
     except Exception as e:
         print(f"Failed: {e}")
 
     return student_availability
+
+
+
 
     
 # TimeTable class for managing schedule
