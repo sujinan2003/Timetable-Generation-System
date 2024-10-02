@@ -533,7 +533,7 @@ class TimeTable:
     def check_schedule_conflict(self, day, start_period, end_period, room, section):
         for entry in self.schedule:
             # ตรวจสอบว่ารายการอยู่ในวันเดียวกันและเป็นเซคเรียนเดียวกัน
-            if entry['วันเรียน'] == day and entry['เซคเรียน'] == section:
+            if entry['วันเรียน'] == day and entry['เซคเรียน'] == section or entry['ห้องเรียน'] == room:
                 # ตรวจสอบการชนกันของเวลา
                 if (int(start_period) <= int(entry['คาบ (จบ)']) and int(end_period) >= int(entry['คาบ (เริ่ม)']) or 
                     int(entry['คาบ (เริ่ม)']) <= int(end_period) and int(entry['คาบ (จบ)']) >= int(start_period)
