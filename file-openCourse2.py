@@ -29,6 +29,10 @@ openCourseSheets = openCourseFile.worksheets()
 openCourseData = {}
 for sheet in openCourseSheets:
     sheet_data = sheet.get_all_records()
+    
+    if sheet.title.endswith('อธิบาย'):
+        continue  # ข้ามชีท
+    
     openCourseData[sheet.title] = sheet_data  # แยกข้อมูลตามชื่อชีท เช่น CS_Y1
 
 # เปิดไฟล์ Open Course2 
