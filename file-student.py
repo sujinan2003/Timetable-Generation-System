@@ -66,9 +66,9 @@ for grade in range(1, numGrades + 1):
             row_start += 1  # ขยับแถวเริ่มต้นสำหรับข้อมูลช่วงเวลา
 
             # เพิ่มข้อมูลหัวข้อคาบ
-            period_data = [[headerPeriod[i], headerTime[i]] + ['' for _ in range(7)] for i in range(1, len(headerPeriod))]
-            batch_data.append({'range': f'A{row_start}:I{row_start + len(period_data) - 1}', 'values': period_data})
-            row_start += len(period_data)
+            periodData = [[headerPeriod[i], headerTime[i]] + ['' for _ in range(7)] for i in range(1, len(headerPeriod))]
+            batch_data.append({'range': f'A{row_start}:I{row_start + len(periodData) - 1}', 'values': periodData})
+            row_start += len(periodData)
 
         # เพิ่มข้อมูลลงในชีทใหม่
         newSheet.batch_update(batch_data)

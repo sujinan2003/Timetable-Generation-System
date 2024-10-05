@@ -13,8 +13,8 @@ teacherSheet = mainFile.worksheet('Teachers')
 timeSlotSheet = mainFile.worksheet('TimeSlot')
 
 # ดึงรหัส Teachers
-idTeacherRange = teacherSheet.range('C3:C')
-idTeacher = [cell.value for cell in idTeacherRange if cell.value]
+teacherRangeID = teacherSheet.range('C3:C')
+teacherID = [cell.value for cell in teacherRangeID if cell.value]
 
 # ดึงชื่อ Teachers
 nameTeacherRange = teacherSheet.range('D3:D')
@@ -34,13 +34,13 @@ timeSlotEnd = [cell.value for cell in timeSlotEndRange if cell.value]
 headerPeriod = ['คาบ'] + [str(i) for i in range(1, len(period) + 1)]
 headerTime = ['เวลา'] + [f'{start} - {end}' for start, end in zip(timeSlotStart, timeSlotEnd)]
 
-# Pair idTeacher and nameTeacher
-teacher_data = zip(idTeacher, nameTeacher)
+# Pair teacherID and nameTeacher
+teacherData = zip(teacherID, nameTeacher)
 
 # เปิดไฟล์ Teacher
 teacherFile = client.open('Teacher')
 
-for branch_id, teacher_name in teacher_data:
+for branch_id, teacher_name in teacherData:
     newSheetName = f'{branch_id}'
     newSheet = teacherFile.add_worksheet(title=newSheetName, rows='200', cols='13')
     headerTitle = [f'ตารางสอน {teacher_name}']
@@ -57,9 +57,9 @@ for branch_id, teacher_name in teacher_data:
     row_start += 1 
 
     # เพิ่มข้อมูลหัวข้อคาบ
-    period_data = [[headerPeriod[i], headerTime[i]] + ['' for _ in range(7)] for i in range(1, len(headerPeriod))]
-    batch_data.append({'range': f'A{row_start}:I{row_start + len(period_data) - 1}', 'values': period_data})
-    row_start += len(period_data)
+    periodData = [[headerPeriod[i], headerTime[i]] + ['' for _ in range(7)] for i in range(1, len(headerPeriod))]
+    batch_data.append({'range': f'A{row_start}:I{row_start + len(periodData) - 1}', 'values': periodData})
+    row_start += len(periodData)
 
     # เพิ่มข้อมูลลงในชีทใหม่
     newSheet.batch_update(batch_data)

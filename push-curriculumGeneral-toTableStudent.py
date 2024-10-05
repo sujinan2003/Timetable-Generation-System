@@ -26,15 +26,15 @@ for sheet in curriculumFile.worksheets():
 branchNames = ['CS', 'IT', 'SE', 'AAI']  # แก้ไขให้ตรงกับชื่อสาขาจริง
 numGrades = 4  # จำนวนชั้นปี
 
-def prepare_data_for_updates(open_course_data, curriculum_data, section_names, student_sheet):
+def prepare_data_for_updates(openCourseData, curriculumData, sectionName, studentSheet):
     batch_data = []
     incomplete_sections = []
 
     # ดึงข้อมูลตารางเรียนทั้งหมดในชีท "Student"
-    all_data = student_sheet.get_all_values()
+    all_data = studentSheet.get_all_values()
 
     # วนลูปสำหรับแต่ละเซคเรียนที่ต้องการอัปเดต
-    for section in section_names:
+    for section in sectionName:
         section_complete = True  # ตั้งค่าเริ่มต้นว่า section นี้สมบูรณ์
 
         # ค้นหาหัวตารางที่มีชื่อเซคที่ต้องการในชีท "Student"
@@ -45,19 +45,19 @@ def prepare_data_for_updates(open_course_data, curriculum_data, section_names, s
                 period_data = all_data[start_row:start_row + 12]  # ตัวอย่างการดึง 12 แถวตารางเรียนของเซค
 
                 # วนลูปสำหรับวิชาที่มีใน Open Course
-                for course in open_course_data:
+                for course in openCourseData:
                     if len(course) < 2:
                         continue
 
-                    course_section = course[0]
-                    course_code = course[1]
-                    course_type = course[4] 
-                    course_credit = course[5]  # หน่วยกิตอยู่ในคอลัมน์ E 
+                    courseSection = course[0]
+                    courseID = course[1]
+                    courseType = course[4] 
+                    courseCredit = course[5]  
                     
-                    # ตรวจสอบให้แน่ใจว่า course_section ตรงกับ section ที่กำลังอัปเดต
-                    if course_section == section:
+                    # ตรวจสอบให้แน่ใจว่า courseSection ตรงกับ section ที่กำลังอัปเดต
+                    if courseSection == section:
                         # ค้นหาข้อมูลวิชาใน Curriculum
-                        matching_courses = [row for row in curriculum_data if len(row) > 0 and row[0] == course_code]
+                        matching_courses = [row for row in curriculumData if len(row) > 0 and row[0] == courseID]
                         
                         if not matching_courses:
                             section_complete = False  # ข้อมูลไม่ครบในส่วนของ curriculum
@@ -70,39 +70,39 @@ def prepare_data_for_updates(open_course_data, curriculum_data, section_names, s
                                 incomplete_sections.append(section)
                                 continue
 
-                            lecture_days = match[6]  # วันเรียนบรรยาย
-                            lecture_start = int(match[7])  # คาบบรรยาย(เริ่ม)
-                            lecture_end = int(match[8])  # คาบบรรยาย(จบ)
-                            practical_days = match[9]  # วันเรียนปฏิบัติ
-                            practical_start = int(match[10])  # คาบปฏิบัติ(เริ่ม)
-                            practical_end = int(match[11])  # คาบปฏิบัติ(จบ)
+                            lectureDay = match[6]  # วันเรียนบรรยาย
+                            lectureStart = int(match[7])  # คาบบรรยาย(เริ่ม)
+                            lectureEnd = int(match[8])  # คาบบรรยาย(จบ)
+                            labDay = match[9]  # วันเรียนปฏิบัติ
+                            labStart = int(match[10])  # คาบปฏิบัติ(เริ่ม)
+                            labEnd = int(match[11])  # คาบปฏิบัติ(จบ)
 
                             # เตรียมข้อมูลอัปเดตในรูปแบบ batch
                             days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์']
-                            for day in lecture_days.split(','):
+                            for day in lectureDay.split(','):
                                 day = day.strip()
                                 if day in days:
                                     col = days.index(day) + 2  # ตัวอย่างเริ่มคอลัมน์ที่ C
-                                    for period in range(lecture_start, lecture_end + 1):
+                                    for period in range(lectureStart, lectureEnd + 1):
                                         row = start_row + period - 1  # เพิ่มแถวตามที่ต้องการ
                                         if not all_data[row][col]:  # ตรวจสอบว่าแถวนี้ว่างหรือไม่
-                                            batch_data.append({'range': f'{chr(65 + col)}{row}', 'values': [[f'{course_code}\n{course_credit}\n{course_type}']]})
+                                            batch_data.append({'range': f'{chr(65 + col)}{row}', 'values': [[f'{courseID}\n{courseCredit}\n{courseType}']]})
 
-                            for day in practical_days.split(','):
+                            for day in labDay.split(','):
                                 day = day.strip()
                                 if day in days:
-                                    col = days.index(day) + 1
-                                    for period in range(practical_start, practical_end + 1):
+                                    col = days.index(day) + 2 #+1
+                                    for period in range(labStart, labEnd + 1):
                                         row = start_row + period - 1
                                         if not all_data[row][col]:  # ตรวจสอบว่าแถวนี้ว่างหรือไม่
-                                            batch_data.append({'range': f'{chr(65 + col)}{row}', 'values': [[f'{course_code}\n{course_credit}\n{course_type}']]})
+                                            batch_data.append({'range': f'{chr(65 + col)}{row}', 'values': [[f'{courseID}\n{courseCredit}\n{courseType}']]})
         
         if not section_complete:  # หากข้อมูลยังไม่ครบ
             incomplete_sections.append(section)
 
     return batch_data, incomplete_sections
 
-def update_student_sheet(sheet, batch_data):
+def update_studentSheet(sheet, batch_data):
     if batch_data:
         sheet.batch_update(batch_data)
 
@@ -124,18 +124,18 @@ def main():
             openCourseSheet = openCourseFile.worksheet(openCourseSheetName)
             sectionNames = list(set(openCourseSheet.col_values(1)[1:]))  # กำจัดข้อมูลซ้ำ
 
-            curriculum_sheet_name = f'{branch_name}'  # ชื่อชีทที่ต้องการดึงข้อมูลใน Curriculum
+            curriculumSheetName = f'{branch_name}'  # ชื่อชีทที่ต้องการดึงข้อมูลใน Curriculum
             
-            if curriculum_sheet_name in curriculumData:  # ตรวจสอบว่าชีทมีอยู่หรือไม่
+            if curriculumSheetName in curriculumData:  # ตรวจสอบว่าชีทมีอยู่หรือไม่
                 batch_data, incomplete_sections = prepare_data_for_updates(
                     openCourseData.get(openCourseSheetName, []), 
-                    curriculumData[curriculum_sheet_name], 
+                    curriculumData[curriculumSheetName], 
                     sectionNames, 
                     studentSheet
                 )
                 
                 # ทำการ batch update ข้อมูลตารางเรียน
-                update_student_sheet(studentSheet, batch_data)
+                update_studentSheet(studentSheet, batch_data)
 
                 if incomplete_sections:
                     print(f"Incomplete data for sections: {', '.join(set(incomplete_sections))}. Please check the data and run again.")
@@ -144,7 +144,7 @@ def main():
                 
                 time.sleep(5)
             else:
-                print(f"Sheet '{curriculum_sheet_name}' not found in Curriculum_General Education Program.")
+                print(f"Sheet '{curriculumSheetName}' not found in Curriculum_General Education Program.")
     
     print("Success!")
 

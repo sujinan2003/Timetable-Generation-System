@@ -8,20 +8,20 @@ credentials = ServiceAccountCredentials.from_json_keyfile_name('data.json', scop
 client = gspread.authorize(credentials)
 
 mainFile = client.open('Main')
-#เลือกชีท Students
+# เลือกชีท Students
 studentSheet = mainFile.worksheet('Students')
 
-#ดึงข้อมูลจำนวนชั้นปี จาก D3
+# ดึงข้อมูลจำนวนชั้นปี จาก D3
 numGrades = int(studentSheet.acell('D3').value)
 
-#ดึงข้อมูลชื่อสาขาทั้งหมด D11:D18
+# ดึงข้อมูลชื่อสาขาทั้งหมด D11:D18
 branchNamesRange = studentSheet.range('D11:D18')
 branchNames = [cell.value for cell in branchNamesRange if cell.value]
 
-#เปิด Open Course
+# เปิด Open Course
 openCourseFile = client.open('Open Course')
 
-#สร้างชีทใหม่ แต่ละชื่อสาขาและชั้นปี
+# สร้างชีทใหม่ แต่ละชื่อสาขาและชั้นปี
 for grade in range(1, numGrades + 1):
     for branch_name in branchNames:
         newSheetName = f'{branch_name}_Y{grade}'
@@ -29,12 +29,14 @@ for grade in range(1, numGrades + 1):
         headers = ['เซคเรียน', 'รหัสวิชา']
         newSheet.insert_row(headers, index=1)
         
-    #หน่วงเวลา 1 วิ     
+    # หน่วง 1 วิ     
     time.sleep(1)  
     
-    #ใช้ batch update แทนการอัปเดตทีละเซลล์
+    # ใช้ batch update แทนการอัปเดตทีละเซลล์
     blank_data = [[''] * len(headers) for _ in range(2, 101)] 
     newSheet.update('A2:B100', blank_data) 
 
 
 print("Success!")
+
+# สร้างชีท แต่ละสาขาชั้นปี สาขา_ปี มีข้อมูลแค่ 'เซคเรียน', 'รหัสวิชา' เพราะอยากรู้แค่แต่ละเซคต้องเรียนวิชาอะไรบ้าง 

@@ -76,10 +76,10 @@ def write_timetable_to_sheet(timetable, sheet_name):
         generateFile = client.open('Generate')
         
         # ดึงชื่อของชีททั้งหมดในไฟล์ 'Generate'
-        sheet_names = [sheet.title for sheet in generateFile.worksheets()]
+        sheetNames = [sheet.title for sheet in generateFile.worksheets()]
         
         # ตรวจสอบว่าชื่อชีทที่ต้องการเขียนมีอยู่หรือไม่
-        if sheet_name not in sheet_names:
+        if sheet_name not in sheetNames:
             # ถ้ายังไม่มี ชื่อชีทนั้นให้สร้างชีทใหม่ด้วยจำนวนแถวและคอลัมน์ที่กำหนด
             generateFile.add_worksheet(title=sheet_name, rows="100", cols="20")
         
@@ -124,12 +124,10 @@ def write_timetable_to_sheet(timetable, sheet_name):
         # แสดงข้อความเมื่อเกิดข้อผิดพลาด
         print(f"An error occurred: {e}")
 
-
 def load_data_from_main(client):
-    # เปิดไฟล์ Google Sheets ที่ชื่อ 'Main'
+    
     mainFile = client.open('Main')
     
-    # เข้าถึงชีท 'TimeSlot' ในไฟล์ 'Main'
     timeSlotSheet = mainFile.worksheet('TimeSlot')
     
     # ดึงค่าจากคอลัมน์ที่ 3 (C) ของชีท 'TimeSlot' และข้ามแถวหัวตาราง
@@ -146,7 +144,6 @@ def load_data_from_main(client):
 
     # ส่งค่าที่ได้กลับ (timeSlots และ rooms)
     return timeSlots, rooms
-
 
 def load_room_types(client):
     # เปิดไฟล์ Google Sheets ที่ชื่อ 'Main'
@@ -176,8 +173,10 @@ def load_room_types(client):
 
 
 def load_courses_curriculum(client):
+    
     # สร้างลิสต์เพื่อเก็บข้อมูลหลักสูตร
     curriculum = []
+    
     try:
         # เปิดไฟล์ Google Sheets ที่ชื่อ 'Open Course2'
         openCourseFile = client.open('Open Course2')
@@ -187,7 +186,7 @@ def load_courses_curriculum(client):
 
         # วนลูปผ่านชีทแต่ละชีท
         for sheet in openCourseSheets:
-            # เพิ่มเงื่อนไขเพื่อเลือกเฉพาะชีทปี 1
+            # เพิ่มเงื่อนไขเพื่อเลือกเฉพาะชีทปี 2
             if not sheet.title.endswith('_Y2'):
                 continue  # ข้ามชีทที่ไม่ใช่ปี 1
 
@@ -195,7 +194,7 @@ def load_courses_curriculum(client):
             data = sheet.get_all_values()
             for row in data[1:]:  # ข้ามแถวหัวตาราง
                 section = row[0]  # เซคเรียน
-                course_code = row[1]  # รหัสวิชา
+                course_id = row[1]  # รหัสวิชา
                 course_name = row[2]  # ชื่อวิชา
                 category = row[3]  # หมวดหมู่
                 credits = row[4]  # หน่วยกิต
@@ -215,10 +214,10 @@ def load_courses_curriculum(client):
                     continue
 
                 # ตรวจสอบว่ามีข้อมูลรหัสวิชา เซคเรียน และอาจารย์
-                if course_code and section and teacher is not None:
+                if course_id and section and teacher is not None:
                     # เพิ่มข้อมูลหลักสูตรลงในลิสต์ curriculum
                     curriculum.append({
-                        'รหัสวิชา': course_code,
+                        'รหัสวิชา': course_id,
                         'เซคเรียน': section,
                         'อาจารย์': teacher,
                         'จำนวนชั่วโมง': hours,
@@ -237,12 +236,13 @@ def load_teacher_availability(client):
     teacher_availability = {}
     try:
         # เปิดไฟล์ Google Sheets ที่ชื่อ 'Teacher'
-        teacher_file = client.open('Teacher')
+        teacherFile = client.open('Teacher')
+        
         # ดึงชีททั้งหมดในไฟล์ 'Teacher'
-        sheets = teacher_file.worksheets()
+        teacherSheets = teacherFile.worksheets()
 
         # วนลูปผ่านชีทแต่ละชีท
-        for sheet in sheets:
+        for sheet in teacherSheets:
             # ข้ามชีทที่ชื่อว่า 'คำอธิบาย'
             if sheet.title == 'คำอธิบาย':
                 continue
@@ -288,19 +288,20 @@ def load_teacher_availability(client):
     return teacher_availability  # ส่งกลับดิกชันนารีความพร้อมของอาจารย์
 
 
-#ตรวจสอบว่าในตารางสอน นักเรียน มีคาบไหนถูกจอง/ว่าง  เฉพาะของปี1
+# ตรวจสอบว่าในตารางสอน นักเรียน มีคาบไหนถูกจอง/ว่าง  เฉพาะของปี1
 def check_timetable_student(client):
+    
     # สร้างดิกชันนารีเพื่อเก็บข้อมูลความพร้อมของนักเรียน
     student_availability = {}
     
     try:
-        # เปิดไฟล์ Google Sheets ที่ชื่อ 'Student'
-        student_file = client.open('Student')
-        # ดึงชีททั้งหมดในไฟล์ 'Student'
-        sheets = student_file.worksheets()
+       
+        studentFile = client.open('Student')
+      
+        studentSheets = studentFile.worksheets()
         
         # วนลูปผ่านชีทแต่ละชีท
-        for sheet in sheets:
+        for sheet in studentSheets:
             # เพิ่มเงื่อนไขเพื่อเลือกเฉพาะชีทปี 1
             if not sheet.title.endswith('_Y2'):
                 continue
@@ -722,6 +723,8 @@ def run():
 
     best_timetable = TimeTable(timeSlots, rooms, room_types, curriculum, teacher_availability, student_availability, studentGen_availability)
     best_timetable.initialize()
+    
+    print(f"Best fitness in generation : {fitness(best_timetable)}")
 
     write_timetable_to_sheet(best_timetable, 'Gen_Y2')
 

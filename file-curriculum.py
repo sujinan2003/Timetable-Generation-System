@@ -6,13 +6,14 @@ scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/au
 credentials = ServiceAccountCredentials.from_json_keyfile_name('data.json', scope) 
 client = gspread.authorize(credentials)
 
-# เปิดไฟล์ Main
 mainFile = client.open('Main')
 
-# เลือกชีท Curriculum
+# เลือกชีท Curriculum ใน Main ไปดึงชื่อ สาขา
 curriculumSheet = mainFile.worksheet('Curriculum')
-curriculumData = [row[1] for row in curriculumSheet.get_all_values()[2:] if row[1]]
+curriculumData = [row[1] for row in curriculumSheet.get_all_values()[2:] if row[1]] # ดึงข้อมูลในแถวB ตั้งแต่ index 2 (คอลัม3)
 
+
+# ใช้ไฟล์ Curriculum เพื่อสร้างตาราง
 newCurriculumFile = client.open('Curriculum')
 
 # สร้างชีทใหม่สำหรับแต่ละหลักสูตร
@@ -22,7 +23,7 @@ for i, courseID in enumerate(curriculumData):
     headers = ['รหัสวิชา', 'ชื่อวิชา', 'หมวดหมู่รายวิชา', 'หน่วยกิต (ทฤษฎี-ปฏิบัติ-ศึกษาด้วยตนเอง)', 'คาบเรียน (บรรยาย)', 'คาบเรียน (ปฏิบัติ)']
     newSheet.insert_row(headers, index=1)
 
-    # หน่วงเวลา 1 วินาที
+    # หน่วง 1 วิ
     time.sleep(1)  
 
     # ใช้ batch update แทนการอัปเดตทีละเซลล์
@@ -30,3 +31,5 @@ for i, courseID in enumerate(curriculumData):
     newSheet.update('A2:F11', blank_data)
 
 print("Success!")
+
+# ไฟล์สำหรับหลักสูตรวิชาในคณะ 
