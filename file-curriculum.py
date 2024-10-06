@@ -20,7 +20,7 @@ newCurriculumFile = client.open('Curriculum')
 for i, courseID in enumerate(curriculumData):
     newSheetName = f'{courseID}'
     newSheet = newCurriculumFile.add_worksheet(title=newSheetName, rows='10', cols='6') # มี 6 หัวข้อ
-    headers = ['รหัสวิชา', 'ชื่อวิชา', 'หมวดหมู่รายวิชา', 'หน่วยกิต (ทฤษฎี-ปฏิบัติ-ศึกษาด้วยตนเอง)', 'คาบเรียน (บรรยาย)', 'คาบเรียน (ปฏิบัติ)']
+    headers = ['รหัสวิชา', 'ชื่อวิชา', 'หมวดหมู่รายวิชา', 'หน่วยกิต (บรรยาย-ปฏิบัติ-ศึกษาด้วยตนเอง)', 'คาบเรียน (บรรยาย)', 'คาบเรียน (ปฏิบัติ)']
     newSheet.insert_row(headers, index=1)
 
     # หน่วง 1 วิ

@@ -55,7 +55,7 @@ for sheetName, records in openCourseData.items():
         # ตรวจสอบว่าชีทมีอยู่แล้วหรือไม่ ถ้ามีแล้วไม่ต้องสร้างใหม่
         if sheetName not in [sheet.title for sheet in openCourseFile2.worksheets()]:
             newSheet = openCourseFile2.add_worksheet(title=sheetName, rows='100', cols='8')
-            headers = ['เซคเรียน', 'รหัสวิชา', 'ชื่อวิชา', 'หมวดหมู่รายวิชา', 'หน่วยกิต (ทฤษฎี-ปฏิบัติ-ศึกษาด้วยตนเอง)', 'จำนวนชั่วโมง', 'ประเภท (บรรยาย/ปฏิบัติ)', 'รหัสอาจารย์']
+            headers = ['เซคเรียน', 'รหัสวิชา', 'ชื่อวิชา', 'หมวดหมู่รายวิชา', 'หน่วยกิต (บรรยาย-ปฏิบัติ-ศึกษาด้วยตนเอง)', 'จำนวนชั่วโมง', 'ประเภท (บรรยาย/ปฏิบัติ)', 'รหัสอาจารย์']
             newSheet.insert_row(headers, index=1)
         else:
             newSheet = openCourseFile2.worksheet(sheetName)
@@ -74,7 +74,7 @@ for sheetName, records in openCourseData.items():
             section = record['เซคเรียน']
             courseName = matched_record['ชื่อวิชา']
             category = matched_record['หมวดหมู่รายวิชา']
-            credits = matched_record['หน่วยกิต (ทฤษฎี-ปฏิบัติ-ศึกษาด้วยตนเอง)']
+            credits = matched_record['หน่วยกิต (บรรยาย-ปฏิบัติ-ศึกษาด้วยตนเอง)']
             teacherID = ''  
 
             # สำหรับคาบเรียนบรรยาย

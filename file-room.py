@@ -38,6 +38,7 @@ roomFile = client.open('Room')
 
 for roomName, roomType in roomData:
     newSheetName = f'{roomName}'
+    
     newSheet = roomFile.add_worksheet(title=newSheetName, rows='200', cols='13')
     headerTitle = [f'ห้อง {roomName} ({roomType})']
     header = ['คาบ', 'เวลา', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์']
@@ -59,7 +60,7 @@ for roomName, roomType in roomData:
 
     # เพิ่มข้อมูลลงในชีทใหม่
     newSheet.batch_update(batch_data)
-
+    
     time.sleep(1)
 
 print("Success!")
